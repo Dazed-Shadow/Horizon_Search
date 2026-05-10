@@ -140,3 +140,57 @@ async def test_limit_max_capped(client):
     """limit > 100 should be rejected by FastAPI validation."""
     r = await client.get("/api/contracts/search", params={"limit": 999})
     assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_sdvosbc_no_keyword(client):
+    """Clicking SDVOSB filter with no keyword — mirrors the user's failing scenario."""
+    real_world_record = {
+        "noticeId": "sdv-real-001",
+        "title": "Veteran IT Support",
+        "type": "o",
+        "typeOfSetAside": "SDVOSBC",
+        "naicsCode": 541512,          # integer — the real bug
+        "department": "Department of Veterans Affairs",
+        "postedDate": "2025-04-01",
+        "responseDeadLine": "2025-05-15",
+        "active": "Yes",
+        "placeOfPerformance": {"city": {"name": "Dallas"}, "state": {"code": "TX"}},
+        "pointOfContact": [{"fullName": "James", "email": "james@va.gov"}],
+        "award": {},
+        "uiLink": "https://sam.gov/opp/sdv-real-001",
+    }
+    with respx.mock as mock:
+        mock.route(url__startswith=SAM_URL).mock(
+            return_value=httpx.Response(200, json={
+                "totalRecords": 1,
+                "opportunitiesData": [real_world_record],
+            })
+        )
+        r = await client.get("/api/contracts/search", params={"set_aside": "SDVOSBC"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["total"] == 1
+    assert len(data["contracts"]) == 1
+    c = data["contracts"][0]
+    assert c["set_aside_code"] == "SDVOSBC"
+    assert c["naics_code"] == "541512"
+    assert c["place_of_performance"] == "Dallas, TX"
+
+
+@pytest.mark.asyncio
+async def test_integer_naics_does_not_drop_contract(client):
+    """Contracts with integer naicsCode must NOT be silently dropped."""
+    with respx.mock as mock:
+        mock.route(url__startswith=SAM_URL).mock(
+            return_value=httpx.Response(200, json={
+                "totalRecords": 2,
+                "opportunitiesData": [
+                    {**SAMPLE_OPPORTUNITY, "naicsCode": 541512},   # integer
+                    {**SAMPLE_OPPORTUNITY, "noticeId": "x2", "naicsCode": "336411"},  # string
+                ],
+            })
+        )
+        r = await client.get("/api/contracts/search")
+    assert r.status_code == 200
+    assert len(r.json()["contracts"]) == 2

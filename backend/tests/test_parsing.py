@@ -76,3 +76,62 @@ def test_parse_contact_empty():
     assert _parse_contact(None) is None
     assert _parse_contact([]) is None
     assert _parse_contact({}) is None
+
+
+def test_parse_integer_naics_code():
+    """SAM.gov returns naicsCode as an integer in real responses."""
+    c = _parse_opportunity({**SAMPLE_OPPORTUNITY, "naicsCode": 541512})
+    assert c is not None
+    assert c.naics_code == "541512"
+
+
+def test_parse_integer_classification_code():
+    """classificationCode (naics_description) can also be an integer."""
+    c = _parse_opportunity({**SAMPLE_OPPORTUNITY, "naicsCode": 541512, "classificationCode": 99})
+    assert c is not None
+    assert c.naics_code == "541512"
+    assert c.naics_description == "99"
+
+
+def test_parse_place_of_performance_string():
+    """placeOfPerformance is sometimes a plain string instead of a nested dict."""
+    c = _parse_opportunity({**SAMPLE_OPPORTUNITY, "placeOfPerformance": "Fort Worth, TX"})
+    assert c is not None
+    assert c.place_of_performance == "Fort Worth, TX"
+
+
+def test_parse_place_of_performance_partial():
+    """placeOfPerformance with only city (no state) should not add trailing comma."""
+    c = _parse_opportunity({
+        **SAMPLE_OPPORTUNITY,
+        "placeOfPerformance": {"city": {"name": "Arlington"}, "state": None},
+    })
+    assert c is not None
+    assert c.place_of_performance == "Arlington"
+
+
+def test_sdvosbc_real_world_record():
+    """Simulate a typical SAM.gov SDVOSBC record with integer NAICS and contact as dict."""
+    opp = {
+        "noticeId": "sdv-001",
+        "title": "Veteran IT Support",
+        "type": "o",
+        "typeOfSetAside": "SDVOSBC",
+        "naicsCode": 541512,
+        "department": "Department of Veterans Affairs",
+        "postedDate": "2025-04-01",
+        "responseDeadLine": "2025-05-15",
+        "active": "Yes",
+        "placeOfPerformance": {"city": {"name": "Dallas"}, "state": {"code": "TX"}},
+        "pointOfContact": {"fullName": "James", "email": "james@va.gov"},
+        "award": {},
+        "uiLink": "https://sam.gov/opp/sdv-001",
+    }
+    c = _parse_opportunity(opp)
+    assert c is not None
+    assert c.notice_id == "sdv-001"
+    assert c.set_aside_code == "SDVOSBC"
+    assert c.naics_code == "541512"
+    assert c.place_of_performance == "Dallas, TX"
+    assert c.contact is not None
+    assert c.contact.name == "James"

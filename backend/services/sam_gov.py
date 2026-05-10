@@ -55,12 +55,24 @@ def _parse_contact(raw: dict) -> Optional[ContactInfo]:
     return None
 
 
+def _str_or_none(v) -> Optional[str]:
+    """Coerce v to str, returning None for None/empty."""
+    if v is None:
+        return None
+    s = str(v).strip()
+    return s or None
+
+
 def _parse_opportunity(opp: dict) -> Optional[Contract]:
     try:
         pop = opp.get("placeOfPerformance") or {}
-        city = (pop.get("city") or {}).get("name", "")
-        state = (pop.get("state") or {}).get("code", "")
-        place = ", ".join(filter(None, [city, state])) or None
+        if isinstance(pop, dict):
+            city = (pop.get("city") or {}).get("name", "")
+            state = (pop.get("state") or {}).get("code", "")
+            place = ", ".join(filter(None, [city, state])) or None
+        else:
+            # SAM.gov sometimes returns a plain string
+            place = _str_or_none(pop)
 
         set_aside_code = opp.get("typeOfSetAside") or None
         ptype = opp.get("type") or None
@@ -80,23 +92,23 @@ def _parse_opportunity(opp: dict) -> Optional[Contract]:
         return Contract(
             notice_id=str(opp.get("noticeId") or ""),
             title=str(opp.get("title") or "Untitled"),
-            solicitation_number=opp.get("solicitationNumber"),
-            agency=opp.get("department") or opp.get("organizationName"),
-            sub_agency=opp.get("subtier"),
-            office=opp.get("office"),
-            posted_date=opp.get("postedDate"),
-            response_deadline=opp.get("responseDeadLine"),
+            solicitation_number=_str_or_none(opp.get("solicitationNumber")),
+            agency=_str_or_none(opp.get("department") or opp.get("organizationName")),
+            sub_agency=_str_or_none(opp.get("subtier")),
+            office=_str_or_none(opp.get("office")),
+            posted_date=_str_or_none(opp.get("postedDate")),
+            response_deadline=_str_or_none(opp.get("responseDeadLine")),
             solicitation_type=ptype,
             solicitation_type_label=SOLICITATION_TYPE_LABELS.get(ptype, ptype),
             set_aside_code=set_aside_code,
             set_aside_label=SET_ASIDE_LABELS.get(set_aside_code, set_aside_code),
-            naics_code=opp.get("naicsCode"),
-            naics_description=opp.get("classificationCode"),
+            naics_code=_str_or_none(opp.get("naicsCode")),      # API returns int
+            naics_description=_str_or_none(opp.get("classificationCode")),
             place_of_performance=place,
-            description=opp.get("description"),
+            description=_str_or_none(opp.get("description")),
             active=opp.get("active") == "Yes" if opp.get("active") else None,
             award_amount=award_amount,
-            ui_link=opp.get("uiLink"),
+            ui_link=_str_or_none(opp.get("uiLink")),
             contact=contact,
         )
     except Exception:
