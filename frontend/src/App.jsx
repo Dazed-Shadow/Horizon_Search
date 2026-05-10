@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import SearchBar from "./components/SearchBar";
 import FilterPanel from "./components/FilterPanel";
 import ContractList from "./components/ContractList";
@@ -14,6 +14,44 @@ const VETERAN_QUICK_FILTERS = [
   { label: "Sources Sought", code: null, field: "solicitation_type", value: "r" },
 ];
 
+function ApiKeyBanner({ onDismiss }) {
+  return (
+    <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-sm text-yellow-800">
+          <svg className="w-4 h-4 shrink-0 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <span>
+            <strong>SAM.gov API key not configured.</strong>{" "}
+            Copy <code className="bg-yellow-100 px-1 rounded">backend/.env.example</code> to{" "}
+            <code className="bg-yellow-100 px-1 rounded">backend/.env</code> and add your free key from{" "}
+            <a
+              href="https://sam.gov/profile/details"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-semibold hover:text-yellow-900"
+            >
+              sam.gov/profile/details
+            </a>
+            . Live search will not work until then.
+          </span>
+        </div>
+        <button
+          onClick={onDismiss}
+          className="shrink-0 text-yellow-600 hover:text-yellow-800 transition"
+          aria-label="Dismiss"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const {
     filters,
@@ -27,6 +65,18 @@ export default function App() {
     search,
     goToPage,
   } = useContracts();
+
+  const [apiKeyMissing, setApiKeyMissing] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/config/status")
+      .then(r => r.json())
+      .then(data => {
+        if (!data.api_key_configured) setApiKeyMissing(true);
+      })
+      .catch(() => {}); // backend not running yet — silent
+  }, []);
 
   const hasActiveFilters = Object.entries(filters).some(([k, v]) => k !== "keyword" && v !== "");
 
@@ -61,6 +111,11 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* API key warning banner */}
+      {apiKeyMissing && !bannerDismissed && (
+        <ApiKeyBanner onDismiss={() => setBannerDismissed(true)} />
+      )}
 
       {/* Hero search */}
       <div className="bg-gradient-to-b from-brand-900 to-brand-700 pb-8 pt-2 shadow-lg">
@@ -129,7 +184,7 @@ export default function App() {
                   <a href="https://www.va.gov/osdbu/"
                     target="_blank" rel="noopener noreferrer"
                     className="hover:underline font-medium">VA OSDBU ↗</a>
-                  <p className="text-green-600">VA's Office of Small & Disadvantaged Business</p>
+                  <p className="text-green-600">VA's Office of Small &amp; Disadvantaged Business</p>
                 </li>
                 <li className="pt-1">
                   <a href="https://www.acquisition.gov/far/subpart-19.14"
@@ -195,7 +250,8 @@ export default function App() {
       </main>
 
       <footer className="border-t border-gray-200 mt-12 py-6 text-center text-xs text-gray-400">
-        Horizon Search · Contract data sourced from{" "}
+        Horizon Search · Contract data sourced from{
+        " "}
         <a href="https://sam.gov" target="_blank" rel="noopener noreferrer" className="underline">SAM.gov</a>
         {" "}· For veteran-owned businesses
       </footer>
