@@ -8,28 +8,44 @@ Write-Host ""
 Write-Host "=== Horizon Search ===" -ForegroundColor Cyan
 Write-Host ""
 
-# ── Prerequisites check ──────────────────────────────────────────────────────
-$hasPython = Get-Command python -ErrorAction SilentlyContinue
-$hasNode   = Get-Command node   -ErrorAction SilentlyContinue
-$hasNpm    = Get-Command npm    -ErrorAction SilentlyContinue
-
-if (-not $hasPython) {
-    Write-Host "ERROR: Python not found." -ForegroundColor Red
-    Write-Host "  Download from https://www.python.org/downloads/" -ForegroundColor Yellow
-    Write-Host "  Make sure to check 'Add Python to PATH' during install." -ForegroundColor Yellow
-    Read-Host "Press Enter to exit"
-    exit 1
+# ── Resolve python executable (handles PATH gaps) ─────────────────────────────
+$pythonExe = $null
+foreach ($candidate in @("python", "py", "python3")) {
+    $found = Get-Command $candidate -ErrorAction SilentlyContinue
+    if ($found) { $pythonExe = $candidate; break }
 }
+
+if (-not $pythonExe) {
+    Write-Host "ERROR: Python not found." -ForegroundColor Red
+    Write-Host "  Download the official installer from https://www.python.org/downloads/" -ForegroundColor Yellow
+    Write-Host "  During install check 'Add python.exe to PATH', then restart VS Code." -ForegroundColor Yellow
+    Read-Host "Press Enter to exit"; exit 1
+}
+
+# ── Detect Microsoft Store Python (broken venv support) ───────────────────────
+$pythonPath = (Get-Command $pythonExe).Source
+if ($pythonPath -like "*WindowsApps*") {
+    Write-Host "ERROR: Microsoft Store Python detected." -ForegroundColor Red
+    Write-Host "  Store Python cannot create virtual environments." -ForegroundColor Yellow
+    Write-Host "  Fix:" -ForegroundColor Yellow
+    Write-Host "    1. Settings -> Apps -> search 'Python' -> Uninstall" -ForegroundColor Yellow
+    Write-Host "    2. Download from https://www.python.org/downloads/" -ForegroundColor Yellow
+    Write-Host "    3. During install check 'Add python.exe to PATH'" -ForegroundColor Yellow
+    Write-Host "    4. Restart VS Code and run this script again." -ForegroundColor Yellow
+    Read-Host "Press Enter to exit"; exit 1
+}
+
+$hasNode = Get-Command node -ErrorAction SilentlyContinue
+$hasNpm  = Get-Command npm  -ErrorAction SilentlyContinue
 if (-not $hasNode -or -not $hasNpm) {
     Write-Host "ERROR: Node.js / npm not found." -ForegroundColor Red
     Write-Host "  Download from https://nodejs.org (LTS version)" -ForegroundColor Yellow
-    Read-Host "Press Enter to exit"
-    exit 1
+    Read-Host "Press Enter to exit"; exit 1
 }
 
-Write-Host "Python: $(python --version)"  -ForegroundColor Green
-Write-Host "Node:   $(node --version)"    -ForegroundColor Green
-Write-Host "npm:    $(npm --version)"     -ForegroundColor Green
+Write-Host "Python: $(&$pythonExe --version)  [$pythonPath]" -ForegroundColor Green
+Write-Host "Node:   $(node --version)" -ForegroundColor Green
+Write-Host "npm:    $(npm --version)"  -ForegroundColor Green
 Write-Host ""
 
 # ── Backend setup ─────────────────────────────────────────────────────────────
@@ -38,21 +54,32 @@ Set-Location $backendDir
 
 if (-not (Test-Path ".env")) {
     Copy-Item ".env.example" ".env"
-    Write-Host "  Created backend\.env from example." -ForegroundColor Yellow
-    Write-Host "  Add your SAM_GOV_API_KEY to backend\.env before searching!" -ForegroundColor Yellow
+    Write-Host "  Created backend\.env — add your SAM_GOV_API_KEY before searching!" -ForegroundColor Yellow
     Write-Host ""
 }
 
-if (-not (Test-Path ".venv")) {
+# Recreate venv if missing or broken (pip.exe absent)
+$pipExe    = Join-Path $backendDir ".venv\Scripts\pip.exe"
+$uvicornExe = Join-Path $backendDir ".venv\Scripts\uvicorn.exe"
+if (-not (Test-Path $pipExe)) {
     Write-Host "[1/2] Creating Python virtual environment..." -ForegroundColor Cyan
-    python -m venv .venv
+    if (Test-Path ".venv") {
+        Remove-Item -Recurse -Force ".venv"
+        Write-Host "  Removed incomplete .venv, rebuilding..." -ForegroundColor Gray
+    }
+    & $pythonExe -m venv .venv
+    if (-not (Test-Path $pipExe)) {
+        Write-Host "ERROR: venv created but pip.exe is missing." -ForegroundColor Red
+        Write-Host "  Try running: $pythonExe -m ensurepip --upgrade" -ForegroundColor Yellow
+        Read-Host "Press Enter to exit"; exit 1
+    }
 }
 
 Write-Host "[1/2] Installing backend dependencies..." -ForegroundColor Cyan
-& ".venv\Scripts\pip.exe" install -q -r requirements.txt
+& $pipExe install -q -r requirements.txt
 
-# Launch backend in a new PowerShell window
-$backendCmd = "Set-Location '$backendDir'; & '.venv\Scripts\uvicorn.exe' main:app --reload --port 8000"
+# Launch backend in a new terminal window
+$backendCmd = "Set-Location '$backendDir'; & '$uvicornExe' main:app --reload --port 8000"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCmd
 
 Write-Host "  Backend started  ->  http://localhost:8000" -ForegroundColor Green
@@ -64,11 +91,8 @@ $frontendDir = Join-Path $root "frontend"
 Set-Location $frontendDir
 
 Write-Host "[2/2] Installing frontend dependencies..." -ForegroundColor Cyan
-if (-not (Test-Path "node_modules")) {
-    npm install
-}
+if (-not (Test-Path "node_modules")) { npm install }
 
-# Launch frontend in a new PowerShell window
 $frontendCmd = "Set-Location '$frontendDir'; npm run dev"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $frontendCmd
 
