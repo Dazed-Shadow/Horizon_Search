@@ -19,6 +19,7 @@ async def search(
     response_deadline_from: Optional[str] = Query(default=None, description="Response deadline from MM/DD/YYYY"),
     response_deadline_to: Optional[str] = Query(default=None, description="Response deadline to MM/DD/YYYY"),
     state: Optional[str] = Query(default=None, description="Place of performance state code (e.g. TX, CA)"),
+    open_only: bool = Query(default=True, description="Exclude award notices and justifications"),
     limit: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ):
@@ -34,6 +35,7 @@ async def search(
             response_deadline_from=response_deadline_from,
             response_deadline_to=response_deadline_to,
             state=state,
+            open_only=open_only,
             limit=limit,
             offset=offset,
         )

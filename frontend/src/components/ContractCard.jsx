@@ -20,12 +20,17 @@ function SetAsideBadge({ code, label }) {
   );
 }
 
+const AWARDED_TYPES = new Set(["a", "u"]);
+
 export default function ContractCard({ contract }) {
   const [expanded, setExpanded] = useState(false);
   const deadline = deadlineStatus(contract.response_deadline);
+  const isAwarded = AWARDED_TYPES.has(contract.solicitation_type);
 
   return (
-    <article className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition p-5">
+    <article className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition p-5 ${
+      isAwarded ? "border-gray-200 opacity-80" : "border-gray-200"
+    }`}>
       {/* Header row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -37,17 +42,24 @@ export default function ContractCard({ contract }) {
               .filter(Boolean).join(" › ")}
           </p>
         </div>
-        {contract.ui_link && (
-          <a
-            href={contract.ui_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 text-brand-600 hover:text-brand-700 border border-brand-200
-                       hover:bg-brand-50 rounded-lg px-3 py-1.5 text-xs font-semibold transition"
-          >
-            View on SAM.gov ↗
-          </a>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {isAwarded && (
+            <span className="badge bg-gray-100 text-gray-500 border border-gray-200">
+              Already Awarded
+            </span>
+          )}
+          {contract.ui_link && (
+            <a
+              href={contract.ui_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-600 hover:text-brand-700 border border-brand-200
+                         hover:bg-brand-50 rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+            >
+              View on SAM.gov ↗
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Badges */}

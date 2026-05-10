@@ -12,6 +12,7 @@ const INITIAL_FILTERS = {
   response_deadline_from: "",
   response_deadline_to: "",
   state: "",
+  open_only: true,   // hide already-awarded contracts by default
 };
 
 export function useContracts() {
@@ -34,7 +35,8 @@ export function useContracts() {
     setError(null);
 
     try {
-      const qs = buildQueryString({ ...activeFilters, limit, offset });
+      const { open_only, ...apiFilters } = activeFilters;
+    const qs = buildQueryString({ ...apiFilters, open_only: open_only ? "true" : "false", limit, offset });
       const res = await fetch(`/api/contracts/search?${qs}`, {
         signal: abortRef.current.signal,
       });

@@ -100,6 +100,8 @@ def _parse_opportunity(opp: dict) -> Contract:
     )
 
 
+AWARDED_PTYPES = {"a", "u"}  # Award Notice, Justification — not biddable
+
 async def search_contracts(
     keyword: str = "",
     set_aside: Optional[str] = None,
@@ -111,6 +113,7 @@ async def search_contracts(
     response_deadline_from: Optional[str] = None,
     response_deadline_to: Optional[str] = None,
     state: Optional[str] = None,
+    open_only: bool = True,
     limit: int = 25,
     offset: int = 0,
 ) -> ContractSearchResult:
@@ -160,6 +163,9 @@ async def search_contracts(
     total = data.get("totalRecords", len(opportunities))
 
     contracts = [_parse_opportunity(o) for o in opportunities]
+
+    if open_only and not solicitation_type:
+        contracts = [c for c in contracts if c.solicitation_type not in AWARDED_PTYPES]
 
     return ContractSearchResult(
         total=total,
