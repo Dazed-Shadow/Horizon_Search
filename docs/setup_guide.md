@@ -111,7 +111,7 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-If PowerShell blocks the script, see [Troubleshooting — Execution Policy](#10-troubleshooting).
+If PowerShell blocks the script, see [Troubleshooting — Execution Policy](#powershell-blocks-venvscriptsactivateps1-execution-policy).
 
 **Install dependencies:**
 
@@ -162,7 +162,7 @@ With both servers running, open your browser and check:
 
 | URL | Expected result |
 |-----|-----------------|
-| `http://localhost:5173` | Horizon Search UI loads with a search bar |
+| `http://localhost:5173` | Horizon Search UI loads with a search bar and filter panel |
 | `http://localhost:8000/health` | JSON: `{"status": "ok"}` |
 | `http://localhost:8000/docs` | FastAPI interactive API documentation |
 
@@ -203,28 +203,35 @@ python -m pytest tests/test_health.py -v
 ## 8. Filter Guide
 
 The filter panel lives in the left sidebar of the search page. All filters are optional and combine
-with AND logic. Click **Apply Filters** after making selections.
+with AND logic — only contracts that match every selected filter appear in results. Click
+**Apply Filters** after making selections, or use the quick-filter pill buttons above the search bar
+for one-click shortcuts.
 
 ### Open Solicitations Only
 
-A toggle switch, on by default. When enabled, award notices (type `a`) are excluded from results
-so you only see contracts that are still open for bids. Turn it off if you want to research
-recently awarded contracts for market intelligence.
+A toggle switch, on by default. When enabled, award notices (type `a`) and justification notices
+(type `u`) are excluded from results so you only see contracts that are still open for bids. Turn it
+off if you want to research recently awarded contracts for market intelligence.
 
 ### Veteran & Small Business Set-Aside
 
 A grouped dropdown. This is the most important filter for a veteran-owned LLC.
 
-**Veteran-Owned group:**
+**Veteran group:**
 
 | Code | Name | What it means |
 |------|------|---------------|
-| `SDVOSBC` | SDVOSB Competitive | Open competition among certified Service-Disabled Veteran-Owned Small Businesses |
-| `SDVOSBS` | SDVOSB Sole Source | Single-award to a specific SDVOSB without competition |
-| `VSB` / `VOSB` | Veteran-Owned Small Business | Broader veteran set-aside (not limited to service-disabled) |
+| `SDVOSBC` | SDVOSB — Competitive | Open competition among certified Service-Disabled Veteran-Owned Small Businesses |
+| `SDVOSBS` | SDVOSB — Sole Source | Single-award to a specific SDVOSB without competition |
+| `VSB` | Veteran-Owned Small Business | Broader veteran set-aside (not limited to service-disabled) |
+| `VOSB` | VOSB | Veteran-Owned Small Business (alternate code) |
 
-**Other set-aside groups also available:** 8(a), HUBZone, Women-Owned (WOSB/EDWOSB), and general
-Small Business.
+**Small Business group:** 8(a) Competitive (`8AN`), 8(a) Sole Source (`8A`), Small Business
+Set-Aside (`SBA`), Small Business Partial (`SBP`), HUBZone Competitive (`HZC`), HUBZone Sole
+Source (`HZS`).
+
+**Women-Owned group:** WOSB Set-Aside (`WOSB`), WOSB Sole Source (`WOSBSS`), EDWOSB Set-Aside
+(`EDWOSB`), EDWOSB Sole Source (`EDWOSBSS`).
 
 > To compete for SDVOSB set-asides, your business must be certified through the VA CVE
 > (Center for Verification and Eligibility). Register first at https://sam.gov, then apply at
@@ -237,22 +244,25 @@ Filters by the stage of the procurement process:
 | Code | Type | When to use |
 |------|------|-------------|
 | `o` | Solicitation (RFP/RFQ/IFB) | Active bids — you can respond now |
-| `p` | Pre-Solicitation | Upcoming bids — start preparing |
 | `k` | Combined Synopsis/Solicitation | Combined notice + solicitation |
+| `p` | Pre-Solicitation | Upcoming bids — start preparing |
 | `r` | Sources Sought / RFI | Agency gauging market interest — respond to get on radar |
 | `s` | Special Notice | Miscellaneous agency announcements |
+| `i` | Intent to Bundle (DoD) | DoD bundling intent — monitor for future competition |
 | `a` | Award Notice | Already awarded — useful for research (requires toggling off "Open Only") |
+| `u` | Justification (J&A) | Sole-source justification notices |
 
 ### Industry (NAICS Code)
 
 Filters by North American Industry Classification System code. Select a common code from the
-dropdown or type a 6-digit NAICS code manually. Common codes pre-loaded include IT services
-(541511–541519), construction (236220, 237310), engineering (541330), staffing (561320), and
-security services (561612).
+dropdown or type a 6-digit NAICS code manually in the text field below the dropdown. Pre-loaded
+codes include custom computer programming (541511), computer systems design (541512), engineering
+services (541330), temporary staffing (561320), security services (561612), and more.
 
 ### Agency / Department
 
 Free-text search against the contracting agency name. Examples:
+
 - `Department of Defense`
 - `Department of Veterans Affairs`
 - `Department of Homeland Security`
@@ -262,29 +272,39 @@ Partial matches work — entering `Veterans` will match the VA.
 ### Place of Performance
 
 A state dropdown. Filters to contracts where the primary work location is in the selected state.
-Useful if your business operates in a specific region.
+Covers all 50 states plus D.C., Puerto Rico, Guam, and U.S. Virgin Islands. Useful if your
+business operates in a specific region.
 
 ### Posted Date Range
 
-Restricts results to contracts posted within a date window. Useful for finding very recent
-postings (e.g., last 7 days) or auditing a historical period.
+Restricts results to contracts posted within a date window. Useful for finding very recent postings
+(e.g., last 7 days) or auditing a historical period.
 
 ### Response Deadline
 
-Filters by when responses are due. Use this to find contracts with upcoming deadlines — for
-example, set "Deadline From" to today's date to exclude already-expired solicitations.
+Filters by when responses are due. Use the **From** field set to today's date to exclude
+already-expired solicitations, or set a narrow window to find contracts whose deadlines are
+approaching soon.
 
 ### Quick Filters
 
 The row of pill buttons at the top of the page (below the search bar) provides one-click shortcuts
-for the most common veteran-owned business filter combinations: All SDVOSB, SDVOSB Sole Source,
-VOSB, 8(a), HUBZone, and Sources Sought.
+for the most common veteran-owned business filter combinations:
+
+| Button | Filter applied |
+|--------|----------------|
+| All SDVOSB | Set-Aside = SDVOSBC |
+| SDVOSB Sole Source | Set-Aside = SDVOSBS |
+| VOSB | Set-Aside = VSB |
+| 8(a) | Set-Aside = 8AN |
+| HUBZone | Set-Aside = HZC |
+| Sources Sought | Solicitation Type = r |
 
 ---
 
 ## 9. Getting Future Updates
 
-Pull the latest code from the working branch and restart the backend:
+Pull the latest code from the working branch:
 
 ```powershell
 git pull origin claude/military-contract-search-tool-9hm2D
@@ -304,8 +324,14 @@ cd frontend
 npm install
 ```
 
-Then restart the backend (`Ctrl+C` in the uvicorn terminal, then `uvicorn main:app --reload --port 8000`).
-The Vite frontend hot-reloads automatically — no restart needed.
+Restart the backend server after pulling (`Ctrl+C` in the uvicorn terminal, then re-run the
+uvicorn command):
+
+```powershell
+uvicorn main:app --reload --port 8000
+```
+
+The Vite frontend hot-reloads automatically — no restart needed unless `package.json` changed.
 
 ---
 
@@ -317,6 +343,7 @@ This happens when Python was installed from the Microsoft Store. The Store versi
 pip and cannot build working virtual environments.
 
 Fix:
+
 1. Open **Settings → Apps → Installed Apps**, search for `Python`, and uninstall the Microsoft
    Store version.
 2. Download the official installer from https://www.python.org/downloads/.
@@ -350,13 +377,13 @@ py -m pip install -r requirements.txt
 Alternatively, find where Python is installed and add it to your PATH manually via
 **System Properties → Environment Variables → Path**.
 
-### Port 8000 is already in use
+### Port 8000 or 5173 is already in use
 
 ```
 ERROR: [Errno 98] Address already in use
 ```
 
-Find and stop the process occupying port 8000:
+Find and stop the process occupying the port:
 
 ```powershell
 netstat -ano | findstr :8000
@@ -368,7 +395,7 @@ Note the PID in the last column, then:
 taskkill /PID <pid> /F
 ```
 
-Then restart uvicorn. The same pattern applies to port 5173 for the Vite frontend.
+Then restart the server. Replace `:8000` with `:5173` to diagnose the Vite frontend port.
 
 ### The yellow "API key not configured" banner appears
 
@@ -382,7 +409,8 @@ Open `backend\.env` in a text editor and confirm:
 ### Search returns no results even with a valid key
 
 SAM.gov API keys can take up to 24 hours to activate after generation. If your key is brand new,
-wait and try again the following day.
+wait and try again the following day. You can also verify the key is active by visiting
+https://sam.gov/profile/details and checking the key status.
 
 ---
 

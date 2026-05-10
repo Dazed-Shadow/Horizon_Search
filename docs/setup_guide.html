@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horizon Search — Setup Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand:        #4f46e5;
+      --brand-dark:   #3730a3;
+      --brand-light:  #e0e7ff;
+      --brand-mid:    #6366f1;
+      --bg:           #f3f4f6;
+      --white:        #ffffff;
+      --gray-50:      #f9fafb;
+      --gray-100:     #f3f4f6;
+      --gray-200:     #e5e7eb;
+      --gray-300:     #d1d5db;
+      --gray-400:     #9ca3af;
+      --gray-500:     #6b7280;
+      --gray-600:     #4b5563;
+      --gray-700:     #374151;
+      --gray-800:     #1f2937;
+      --gray-900:     #111827;
+      --green-100:    #dcfce7;
+      --green-700:    #15803d;
+      --green-800:    #166534;
+      --amber-100:    #fef3c7;
+      --amber-600:    #d97706;
+      --amber-700:    #b45309;
+      --indigo-50:    #eef2ff;
+      --indigo-700:   #4338ca;
+      --code-bg:      #1e1e2e;
+      --code-prompt:  #a78bfa;
+      --code-text:    #cdd6f4;
+      --sidebar-w:    260px;
+      --content-max:  860px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--gray-800);
+      line-height: 1.6;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ─── Sidebar ─────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--white);
+      border-right: 1px solid var(--gray-200);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      padding: 0 0 24px 0;
+      z-index: 10;
+    }
+
+    .sidebar-logo {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .sidebar-logo .product-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--brand);
+      letter-spacing: -0.3px;
+    }
+
+    .sidebar-logo .doc-type {
+      font-size: 11px;
+      color: var(--gray-400);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-top: 2px;
+    }
+
+    .toc-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--gray-400);
+      padding: 16px 20px 6px;
+    }
+
+    .toc-list { list-style: none; }
+
+    .toc-list li a {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 6px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--gray-600);
+      text-decoration: none;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+
+    .toc-list li a:hover {
+      color: var(--brand);
+      background: var(--brand-light);
+      border-left-color: var(--brand);
+    }
+
+    .toc-list li a .toc-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      min-width: 20px;
+      border-radius: 50%;
+      background: var(--gray-100);
+      color: var(--gray-500);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .toc-list li a:hover .toc-num {
+      background: var(--brand-light);
+      color: var(--brand);
+    }
+
+    /* ─── Main content ────────────────────────────────── */
+    .main {
+      flex: 1;
+      padding: 48px 48px 80px;
+      max-width: calc(var(--sidebar-w) + var(--content-max) + 96px);
+      min-width: 0;
+    }
+
+    .page-header {
+      margin-bottom: 40px;
+      padding-bottom: 28px;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    .page-header .eyebrow {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--brand);
+      margin-bottom: 8px;
+    }
+
+    .page-header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--gray-900);
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+
+    .page-header .subtitle {
+      font-size: 16px;
+      color: var(--gray-500);
+      margin-top: 10px;
+      max-width: 600px;
+      line-height: 1.5;
+    }
+
+    .page-header .badges {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .tech-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--brand-light);
+      color: var(--brand-dark);
+    }
+
+    /* ─── Sections ────────────────────────────────────── */
+    .section {
+      margin-bottom: 48px;
+      scroll-margin-top: 24px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .step-circle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .section-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--gray-900);
+      letter-spacing: -0.2px;
+    }
+
+    .card {
+      background: var(--white);
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    p { margin-bottom: 12px; color: var(--gray-700); font-size: 14.5px; }
+    p:last-child { margin-bottom: 0; }
+
+    a { color: var(--brand); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ─── Code blocks ─────────────────────────────────── */
+    .code-block {
+      background: var(--code-bg);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 14px 0;
+    }
+
+    .code-block-header {
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .code-block-header .lang-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: rgba(255,255,255,0.35);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .code-block pre {
+      padding: 16px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--code-text);
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .code-block .prompt {
+      color: var(--code-prompt);
+      user-select: none;
+    }
+
+    .code-block .comment {
+      color: #6272a4;
+      font-style: italic;
+    }
+
+    /* ─── Inline code ─────────────────────────────────── */
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      background: var(--gray-100);
+      color: var(--brand-dark);
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--gray-200);
+    }
+
+    /* ─── Tables ──────────────────────────────────────── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      margin: 14px 0;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 9px 14px;
+      background: var(--gray-50);
+      color: var(--gray-600);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    .data-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-700);
+      vertical-align: top;
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .data-table tr:hover td { background: var(--gray-50); }
+
+    /* ─── Callout boxes ───────────────────────────────── */
+    .callout {
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin: 16px 0;
+      display: flex;
+      gap: 12px;
+      font-size: 13.5px;
+    }
+
+    .callout.info {
+      background: var(--indigo-50);
+      border: 1px solid #c7d2fe;
+      color: var(--indigo-700);
+    }
+
+    .callout.warning {
+      background: var(--amber-100);
+      border: 1px solid #fde68a;
+      color: var(--amber-700);
+    }
+
+    .callout.success {
+      background: var(--green-100);
+      border: 1px solid #bbf7d0;
+      color: var(--green-800);
+    }
+
+    .callout-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .callout p { color: inherit; margin-bottom: 0; font-size: 13.5px; }
+    .callout strong { font-weight: 700; }
+
+    /* ─── Lists ───────────────────────────────────────── */
+    ul, ol {
+      padding-left: 22px;
+      margin-bottom: 12px;
+      font-size: 14.5px;
+      color: var(--gray-700);
+    }
+
+    li { margin-bottom: 5px; line-height: 1.55; }
+
+    /* ─── Sub-headings ────────────────────────────────── */
+    h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin: 20px 0 8px;
+    }
+
+    h4 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gray-600);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 16px 0 6px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--gray-200);
+      margin: 24px 0;
+    }
+
+    /* ─────────────────────────────────────────────────── */
+    /* MOCKUP STYLES                                        */
+    /* ─────────────────────────────────────────────────── */
+
+    .mockup-wrapper {
+      margin: 24px 0;
+    }
+
+    .mockup-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--gray-400);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mockup-label::before {
+      content: '';
+      display: inline-block;
+      width: 16px;
+      height: 2px;
+      background: var(--gray-300);
+    }
+
+    .mockup-frame {
+      background: #e8ecf0;
+      border-radius: 14px;
+      padding: 20px;
+      border: 1px solid var(--gray-300);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    /* ── Mockup 1: Filter Panel ── */
+    .m-filter-panel {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 14px;
+      width: 220px;
+      font-size: 12px;
+    }
+
+    .m-filter-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .m-filter-header span:first-child {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--gray-800);
+    }
+
+    .m-filter-header span:last-child {
+      font-size: 11px;
+      color: var(--brand);
+      cursor: pointer;
+    }
+
+    .m-toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--gray-100);
+      margin-bottom: 8px;
+    }
+
+    .m-toggle-label { font-size: 12px; font-weight: 600; color: var(--gray-700); }
+    .m-toggle-sub { font-size: 10px; color: var(--gray-400); margin-top: 1px; }
+
+    .m-toggle {
+      width: 34px;
+      height: 19px;
+      background: var(--brand);
+      border-radius: 10px;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .m-toggle::after {
+      content: '';
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      right: 2px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .m-section { margin-bottom: 8px; }
+
+    .m-section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0 4px;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--gray-700);
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .m-section-title svg {
+      width: 12px;
+      height: 12px;
+      color: var(--gray-400);
+    }
+
+    .m-select {
+      width: 100%;
+      border: 1px solid var(--gray-200);
+      border-radius: 7px;
+      padding: 6px 8px;
+      font-size: 12px;
+      color: var(--brand-dark);
+      background: var(--indigo-50);
+      font-weight: 600;
+      margin-top: 6px;
+      appearance: none;
+      cursor: default;
+    }
+
+    .m-select-placeholder {
+      width: 100%;
+      border: 1px solid var(--gray-200);
+      border-radius: 7px;
+      padding: 6px 8px;
+      font-size: 12px;
+      color: var(--gray-400);
+      background: white;
+      margin-top: 6px;
+    }
+
+    .m-section-greyed .m-section-title { color: var(--gray-400); }
+    .m-section-greyed .m-select-placeholder { opacity: 0.5; }
+
+    .m-hint { font-size: 10px; color: var(--gray-400); margin-top: 4px; line-height: 1.3; }
+
+    .m-apply-btn {
+      width: 100%;
+      background: var(--brand);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 0;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      margin-top: 12px;
+      cursor: default;
+    }
+
+    /* ── Mockup 2: Contract Card ── */
+    .m-contract-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 18px 20px;
+      font-size: 13px;
+    }
+
+    .m-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .m-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-900);
+      line-height: 1.35;
+      flex: 1;
+    }
+
+    .m-card-agency {
+      font-size: 12px;
+      color: var(--gray-500);
+      margin-top: 3px;
+    }
+
+    .m-sam-link {
+      display: inline-block;
+      border: 1px solid #c7d2fe;
+      color: var(--brand);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+      cursor: default;
+    }
+
+    .m-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 14px;
+    }
+
+    .m-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .m-badge-vet { background: var(--green-100); color: var(--green-700); }
+    .m-badge-type { background: var(--gray-100); color: var(--gray-600); }
+    .m-badge-naics { background: var(--indigo-50); color: var(--indigo-700); }
+    .m-badge-loc { background: var(--gray-100); color: var(--gray-600); }
+
+    .m-star { font-size: 10px; }
+
+    .m-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding-top: 12px;
+      border-top: 1px solid var(--gray-100);
+    }
+
+    .m-metric-label {
+      font-size: 10px;
+      color: var(--gray-400);
+      margin-bottom: 2px;
+      font-weight: 500;
+    }
+
+    .m-metric-value {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+
+    .m-metric-value.amber { color: var(--amber-600); }
+
+    .m-metric-mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--gray-700);
+    }
+
+    /* ── Mockup 3: Results Header ── */
+    .m-results-header {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .m-results-count {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gray-800);
+    }
+
+    .m-results-count span {
+      color: var(--brand);
+    }
+
+    .m-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .m-chip-label {
+      font-size: 11px;
+      color: var(--gray-500);
+      font-weight: 500;
+      margin-right: 2px;
+    }
+
+    .m-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: var(--brand);
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: default;
+    }
+
+    .m-chip-x {
+      opacity: 0.7;
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    /* ─── Troubleshoot section ─────────────────────────── */
+    .trouble-item {
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .trouble-title {
+      padding: 12px 16px;
+      background: var(--gray-50);
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--gray-800);
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .trouble-title::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--amber-600);
+      flex-shrink: 0;
+    }
+
+    .trouble-body {
+      padding: 14px 16px;
+      background: white;
+    }
+
+    .trouble-body p { font-size: 13.5px; margin-bottom: 8px; }
+
+    /* ─── Prereq table ────────────────────────────────── */
+    .prereq-table {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .prereq-card {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .prereq-card .prereq-name {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--gray-800);
+      margin-bottom: 3px;
+    }
+
+    .prereq-card .prereq-version {
+      font-size: 11px;
+      color: var(--gray-400);
+      margin-bottom: 8px;
+    }
+
+    .prereq-card a {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--brand);
+    }
+
+    /* ─── Verify urls ─────────────────────────────────── */
+    .url-check-list {
+      list-style: none;
+      padding: 0;
+      margin: 14px 0;
+    }
+
+    .url-check-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      font-size: 13.5px;
+    }
+
+    .url-check-list li .url-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      flex-shrink: 0;
+    }
+
+    .url-check-list li code { font-size: 12px; }
+
+    .url-check-list li .url-desc {
+      margin-left: auto;
+      color: var(--gray-400);
+      font-size: 12px;
+    }
+
+    /* ─── Coming Next ─────────────────────────────────── */
+    .coming-next-card {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      border-radius: 12px;
+      padding: 24px;
+      color: white;
+    }
+
+    .coming-next-card h3 {
+      color: white;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .coming-next-card p {
+      color: rgba(255,255,255,0.8);
+      font-size: 14px;
+    }
+
+    .coming-next-card .placeholder-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: rgba(255,255,255,0.9);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-top: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─── Section divider ─────────────────────────────── */
+    .section-divider {
+      border: none;
+      border-top: 2px dashed var(--gray-200);
+      margin: 40px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="product-name">Horizon Search</div>
+      <div class="doc-type">Setup Guide</div>
+    </div>
+    <div class="toc-label">Contents</div>
+    <ul class="toc-list">
+      <li><a href="#s1"><span class="toc-num">1</span> Prerequisites</a></li>
+      <li><a href="#s2"><span class="toc-num">2</span> Clone the Repo</a></li>
+      <li><a href="#s3"><span class="toc-num">3</span> Configure API Key</a></li>
+      <li><a href="#s4"><span class="toc-num">4</span> Backend Setup</a></li>
+      <li><a href="#s5"><span class="toc-num">5</span> Frontend Setup</a></li>
+      <li><a href="#s6"><span class="toc-num">6</span> Verify It's Working</a></li>
+      <li><a href="#s7"><span class="toc-num">7</span> Running the Tests</a></li>
+      <li><a href="#s8"><span class="toc-num">8</span> Filter Guide</a></li>
+      <li><a href="#s9"><span class="toc-num">9</span> Getting Updates</a></li>
+      <li><a href="#s10"><span class="toc-num">10</span> Troubleshooting</a></li>
+      <li><a href="#s11"><span class="toc-num">11</span> Coming Next</a></li>
+    </ul>
+  </nav>
+
+  <!-- ═══════════════════════════ MAIN ═══════════════════════════════ -->
+  <main class="main">
+
+    <!-- Page header -->
+    <div class="page-header">
+      <div class="eyebrow">Developer Documentation</div>
+      <h1>Horizon Search — Setup Guide</h1>
+      <p class="subtitle">
+        Horizon Search is a government contract search tool built for veteran-owned LLCs. It pulls
+        live opportunities from SAM.gov and surfaces them with veteran-specific set-aside filters.
+      </p>
+      <div class="badges">
+        <span class="tech-badge">Python 3.11+</span>
+        <span class="tech-badge">FastAPI</span>
+        <span class="tech-badge">React + Vite</span>
+        <span class="tech-badge">Tailwind CSS</span>
+        <span class="tech-badge">SAM.gov API</span>
+      </div>
+    </div>
+
+    <!-- ─── 1. Prerequisites ─────────────────────────────── -->
+    <section class="section" id="s1">
+      <div class="section-header">
+        <div class="step-circle">1</div>
+        <h2>Prerequisites</h2>
+      </div>
+      <div class="card">
+        <p>Install each of the following before proceeding. All commands below use Windows PowerShell.</p>
+
+        <div class="prereq-table">
+          <div class="prereq-card">
+            <div class="prereq-name">Git</div>
+            <div class="prereq-version">Any recent version</div>
+            <a href="https://git-scm.com/downloads" target="_blank">git-scm.com ↗</a>
+          </div>
+          <div class="prereq-card">
+            <div class="prereq-name">Python</div>
+            <div class="prereq-version">3.11 or higher</div>
+            <a href="https://www.python.org/downloads/" target="_blank">python.org ↗</a>
+          </div>
+          <div class="prereq-card">
+            <div class="prereq-name">Node.js</div>
+            <div class="prereq-version">18 LTS or higher</div>
+            <a href="https://nodejs.org" target="_blank">nodejs.org ↗</a>
+          </div>
+        </div>
+
+        <div class="callout warning">
+          <div class="callout-icon">&#9888;</div>
+          <div>
+            <p><strong>Python source matters.</strong> Download Python from <strong>python.org</strong>,
+            not the Microsoft Store. The Microsoft Store version ships without <code>pip</code> and cannot
+            create virtual environments. During the installer, check <strong>"Add python.exe to PATH"</strong>
+            before clicking Install.</p>
+          </div>
+        </div>
+
+        <p>After installing, open a new PowerShell terminal and confirm all four tools are available:</p>
+
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>python --version
+<span class="prompt">PS&gt; </span>node --version
+<span class="prompt">PS&gt; </span>npm --version
+<span class="prompt">PS&gt; </span>git --version</pre>
+        </div>
+
+        <p style="margin-top:8px;">All four commands should print version numbers without errors.</p>
+      </div>
+    </section>
+
+    <!-- ─── 2. Clone the Repository ─────────────────────── -->
+    <section class="section" id="s2">
+      <div class="section-header">
+        <div class="step-circle">2</div>
+        <h2>Clone the Repository</h2>
+      </div>
+      <div class="card">
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>git clone https://github.com/dazed-shadow/horizon_search.git
+<span class="prompt">PS&gt; </span>cd horizon_search
+<span class="prompt">PS&gt; </span>git checkout claude/military-contract-search-tool-9hm2D</pre>
+        </div>
+
+        <p>The repository contains two top-level directories:</p>
+        <ul>
+          <li><code>backend/</code> — FastAPI application (Python)</li>
+          <li><code>frontend/</code> — React/Vite application (JavaScript)</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ─── 3. Configure API Key ─────────────────────────── -->
+    <section class="section" id="s3">
+      <div class="section-header">
+        <div class="step-circle">3</div>
+        <h2>Configure Your SAM.gov API Key</h2>
+      </div>
+      <div class="card">
+        <p>Horizon Search pulls live contract data from the SAM.gov Opportunities API. A free API key is required.</p>
+
+        <h3>Get your key</h3>
+        <ol>
+          <li>Go to <a href="https://sam.gov/profile/details" target="_blank">sam.gov/profile/details</a></li>
+          <li>Log in (or register for a free account — takes about 15 minutes).</li>
+          <li>Scroll to the <strong>API Keys</strong> section and click <strong>Generate New Key</strong>.</li>
+          <li>The key activates within 24 hours of generation.</li>
+        </ol>
+
+        <h3>Add the key to the project</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>cd backend
+<span class="prompt">PS&gt; </span>Copy-Item .env.example .env</pre>
+        </div>
+
+        <p>Open <code>backend\.env</code> in VS Code and replace the placeholder value:</p>
+
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">ENV file</span></div>
+          <pre>SAM_GOV_API_KEY=your_actual_key_here</pre>
+        </div>
+
+        <div class="callout info">
+          <div class="callout-icon">&#128274;</div>
+          <div>
+            <p>The <code>.env</code> file is listed in <code>.gitignore</code> and will never be
+            committed to the repository. Never share or commit your API key.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 4. Backend Setup ─────────────────────────────── -->
+    <section class="section" id="s4">
+      <div class="section-header">
+        <div class="step-circle">4</div>
+        <h2>Backend Setup</h2>
+      </div>
+      <div class="card">
+        <p>From the <code>backend\</code> directory. Run these commands in order.</p>
+
+        <h3>Create a virtual environment</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>python -m venv .venv</pre>
+        </div>
+
+        <h3>Activate it</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>.venv\Scripts\Activate.ps1</pre>
+        </div>
+
+        <p>If PowerShell blocks the script, see <a href="#s10">Troubleshooting — Execution Policy</a>.</p>
+
+        <h3>Install dependencies</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>pip install -r requirements.txt</pre>
+        </div>
+
+        <p>This installs: FastAPI, Uvicorn, httpx, pydantic, and python-dotenv.</p>
+
+        <h3>Start the backend server</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>uvicorn main:app --reload --port 8000</pre>
+        </div>
+
+        <div class="callout info">
+          <div class="callout-icon">&#128161;</div>
+          <div>
+            <p>The <code>--reload</code> flag automatically restarts the server whenever you save a
+            Python file. Leave this terminal open — the backend runs here.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 5. Frontend Setup ────────────────────────────── -->
+    <section class="section" id="s5">
+      <div class="section-header">
+        <div class="step-circle">5</div>
+        <h2>Frontend Setup</h2>
+      </div>
+      <div class="card">
+        <p>Open a <strong>second</strong> PowerShell terminal and navigate to the <code>frontend\</code> directory.</p>
+
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>cd path\to\horizon_search\frontend</pre>
+        </div>
+
+        <h3>Install Node dependencies</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>npm install</pre>
+        </div>
+
+        <h3>Start the development server</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>npm run dev</pre>
+        </div>
+
+        <p>Vite will print a local URL — typically <code>http://localhost:5173</code>. Leave this terminal open.</p>
+      </div>
+    </section>
+
+    <!-- ─── 6. Verify ────────────────────────────────────── -->
+    <section class="section" id="s6">
+      <div class="section-header">
+        <div class="step-circle">6</div>
+        <h2>Verify It's Working</h2>
+      </div>
+      <div class="card">
+        <p>With both servers running, open your browser and check each URL:</p>
+
+        <ul class="url-check-list">
+          <li>
+            <div class="url-dot"></div>
+            <code>http://localhost:5173</code>
+            <div class="url-desc">Horizon Search UI loads with a search bar</div>
+          </li>
+          <li>
+            <div class="url-dot"></div>
+            <code>http://localhost:8000/health</code>
+            <div class="url-desc">JSON: <code>{"status": "ok"}</code></div>
+          </li>
+          <li>
+            <div class="url-dot"></div>
+            <code>http://localhost:8000/docs</code>
+            <div class="url-desc">FastAPI interactive API docs</div>
+          </li>
+        </ul>
+
+        <div class="callout warning">
+          <div class="callout-icon">&#9888;</div>
+          <div>
+            <p>If the yellow banner <strong>"SAM.gov API key not configured"</strong> appears on the
+            search page, your <code>.env</code> file is missing or the key value is still the
+            placeholder. Edit <code>backend\.env</code> and restart the backend server.</p>
+          </div>
+        </div>
+
+        <!-- MOCKUP 3 — Results header with active filter chips -->
+        <div class="mockup-wrapper" style="margin-top: 20px;">
+          <div class="mockup-label">UI Preview — Results header with active filters</div>
+          <div class="mockup-frame">
+            <div class="m-results-header">
+              <div class="m-results-count"><span>23</span> contracts found</div>
+              <div class="m-chips">
+                <span class="m-chip-label">Active filters:</span>
+                <span class="m-chip">SDVOSB Competitive <span class="m-chip-x">&times;</span></span>
+                <span class="m-chip">Texas <span class="m-chip-x">&times;</span></span>
+                <span class="m-chip">Open Only <span class="m-chip-x">&times;</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MOCKUP 2 — Contract card -->
+        <div class="mockup-wrapper" style="margin-top: 20px;">
+          <div class="mockup-label">UI Preview — Sample contract card</div>
+          <div class="mockup-frame">
+            <div class="m-contract-card">
+              <div class="m-card-top">
+                <div>
+                  <div class="m-card-title">&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588; IT Support Services &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;</div>
+                  <div class="m-card-agency">Department of &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588; &rsaquo; &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588; Corps</div>
+                </div>
+                <div class="m-sam-link">View on SAM.gov &#x2197;</div>
+              </div>
+              <div class="m-badges">
+                <span class="m-badge m-badge-vet"><span class="m-star">&#9733;</span> SDVOSB Competitive</span>
+                <span class="m-badge m-badge-type">Solicitation</span>
+                <span class="m-badge m-badge-naics">NAICS &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;</span>
+                <span class="m-badge m-badge-loc">&#128205; &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;, TX</span>
+              </div>
+              <div class="m-metrics">
+                <div>
+                  <div class="m-metric-label">Posted</div>
+                  <div class="m-metric-value">Apr 01, 2025</div>
+                </div>
+                <div>
+                  <div class="m-metric-label">Response Deadline</div>
+                  <div class="m-metric-value amber">May 15, 2025 <span style="font-size:11px;">(18 days left)</span></div>
+                </div>
+                <div>
+                  <div class="m-metric-label">Solicitation #</div>
+                  <div class="m-metric-mono">W&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;-25-R-&#x2588;&#x2588;&#x2588;&#x2588;</div>
+                </div>
+                <div>
+                  <div class="m-metric-label">Award Amount</div>
+                  <div class="m-metric-value">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 7. Test Suite ────────────────────────────────── -->
+    <section class="section" id="s7">
+      <div class="section-header">
+        <div class="step-circle">7</div>
+        <h2>Running the Test Suite</h2>
+      </div>
+      <div class="card">
+        <p>The backend ships with <strong>31 automated tests</strong>. Install dev dependencies first (once):</p>
+
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>cd backend
+<span class="prompt">PS&gt; </span>pip install -r requirements-dev.txt</pre>
+        </div>
+
+        <h3>Run the full suite</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>python -m pytest -v</pre>
+        </div>
+
+        <div class="callout success">
+          <div class="callout-icon">&#10003;</div>
+          <div>
+            <p>All 31 tests should pass. The tests use mocked SAM.gov responses — no live API key
+            or internet connection is required to run them.</p>
+          </div>
+        </div>
+
+        <h3>Run a specific test file</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>python -m pytest tests/test_contracts.py -v
+<span class="prompt">PS&gt; </span>python -m pytest tests/test_parsing.py -v
+<span class="prompt">PS&gt; </span>python -m pytest tests/test_health.py -v</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 8. Filter Guide ──────────────────────────────── -->
+    <section class="section" id="s8">
+      <div class="section-header">
+        <div class="step-circle">8</div>
+        <h2>Filter Guide</h2>
+      </div>
+      <div class="card">
+        <p>
+          The filter panel lives in the left sidebar of the search page. All filters are optional
+          and combine with AND logic — only contracts matching every selected filter appear. Click
+          <strong>Apply Filters</strong> after making selections, or use the quick-filter pill
+          buttons above the search bar for one-click shortcuts.
+        </p>
+
+        <!-- MOCKUP 1 — Filter panel -->
+        <div class="mockup-wrapper">
+          <div class="mockup-label">UI Preview — Filter panel with SDVOSB Competitive selected</div>
+          <div class="mockup-frame" style="display: flex; justify-content: center;">
+            <div class="m-filter-panel">
+              <div class="m-filter-header">
+                <span>Filters</span>
+                <span>Clear all</span>
+              </div>
+
+              <!-- Toggle -->
+              <div class="m-toggle-row">
+                <div>
+                  <div class="m-toggle-label">Open solicitations only</div>
+                  <div class="m-toggle-sub">Hide already-awarded contracts</div>
+                </div>
+                <div class="m-toggle"></div>
+              </div>
+
+              <!-- Set-Aside -->
+              <div class="m-section">
+                <div class="m-section-title">
+                  Veteran &amp; Small Business Set-Aside
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                  </svg>
+                </div>
+                <div class="m-select">SDVOSB &#x2014; Competitive</div>
+                <div class="m-hint">SDVOSB &amp; VOSB contracts are reserved for veteran-owned LLCs registered in SAM.gov.</div>
+              </div>
+
+              <!-- Solicitation Type — greyed -->
+              <div class="m-section m-section-greyed">
+                <div class="m-section-title">
+                  Solicitation Type
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+
+              <!-- NAICS — greyed -->
+              <div class="m-section m-section-greyed">
+                <div class="m-section-title">
+                  Industry (NAICS Code)
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Agency — greyed -->
+              <div class="m-section m-section-greyed">
+                <div class="m-section-title">
+                  Agency / Department
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+
+              <div class="m-apply-btn">Apply Filters</div>
+            </div>
+          </div>
+        </div>
+
+        <hr />
+
+        <h3>Open Solicitations Only</h3>
+        <p>
+          A toggle switch, on by default. When enabled, award notices and justification notices are
+          excluded so you only see contracts that are still open for bids. Turn it off to research
+          recently awarded contracts for market intelligence.
+        </p>
+
+        <h3>Veteran &amp; Small Business Set-Aside</h3>
+        <p>A grouped dropdown. This is the most important filter for a veteran-owned LLC.</p>
+
+        <h4>Veteran group</h4>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Name</th>
+              <th>What it means</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>SDVOSBC</code></td>
+              <td>SDVOSB — Competitive</td>
+              <td>Open competition among certified Service-Disabled Veteran-Owned Small Businesses</td>
+            </tr>
+            <tr>
+              <td><code>SDVOSBS</code></td>
+              <td>SDVOSB — Sole Source</td>
+              <td>Single-award to a specific SDVOSB without competition</td>
+            </tr>
+            <tr>
+              <td><code>VSB</code></td>
+              <td>Veteran-Owned Small Business</td>
+              <td>Broader veteran set-aside (not limited to service-disabled)</td>
+            </tr>
+            <tr>
+              <td><code>VOSB</code></td>
+              <td>VOSB</td>
+              <td>Veteran-Owned Small Business (alternate code)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>Other set-aside groups available: <strong>Small Business</strong> (8(a), HUBZone, SBA),
+        <strong>Women-Owned</strong> (WOSB, EDWOSB), and <strong>Other</strong> (Indian Economic Enterprise).</p>
+
+        <div class="callout success">
+          <div class="callout-icon">&#127881;</div>
+          <div>
+            <p>To compete for SDVOSB set-asides, your business must be certified through the VA CVE
+            (Center for Verification and Eligibility). Register first at
+            <a href="https://sam.gov" target="_blank">sam.gov</a>, then apply at
+            <a href="https://www.va.gov/osdbu/" target="_blank">va.gov/osdbu</a>.</p>
+          </div>
+        </div>
+
+        <h3>Solicitation Type</h3>
+        <table class="data-table">
+          <thead>
+            <tr><th>Code</th><th>Type</th><th>When to use</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>o</code></td><td>Solicitation (RFP/RFQ/IFB)</td><td>Active bids — you can respond now</td></tr>
+            <tr><td><code>k</code></td><td>Combined Synopsis/Solicitation</td><td>Combined notice + solicitation</td></tr>
+            <tr><td><code>p</code></td><td>Pre-Solicitation</td><td>Upcoming bids — start preparing</td></tr>
+            <tr><td><code>r</code></td><td>Sources Sought / RFI</td><td>Agency gauging market interest — respond to get on radar</td></tr>
+            <tr><td><code>s</code></td><td>Special Notice</td><td>Miscellaneous agency announcements</td></tr>
+            <tr><td><code>i</code></td><td>Intent to Bundle (DoD)</td><td>DoD bundling intent — monitor for future competition</td></tr>
+            <tr><td><code>a</code></td><td>Award Notice</td><td>Already awarded — useful for research (requires toggling off "Open Only")</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Industry (NAICS Code)</h3>
+        <p>
+          Filters by North American Industry Classification System code. Select a common code from
+          the dropdown or type a 6-digit code manually in the text field below it. Pre-loaded codes
+          include custom computer programming (541511), engineering services (541330), temporary
+          staffing (561320), security services (561612), and more.
+        </p>
+
+        <h3>Agency / Department</h3>
+        <p>
+          Free-text search against the contracting agency name. Partial matches work — entering
+          <code>Veterans</code> will match the Department of Veterans Affairs. Examples:
+          <code>Department of Defense</code>, <code>Department of Homeland Security</code>.
+        </p>
+
+        <h3>Place of Performance</h3>
+        <p>
+          A state dropdown. Filters to contracts where the primary work location is in the selected
+          state. Covers all 50 states plus D.C., Puerto Rico, Guam, and U.S. Virgin Islands.
+        </p>
+
+        <h3>Posted Date Range</h3>
+        <p>
+          Restricts results to contracts posted within a date window. Useful for finding very recent
+          postings (e.g., last 7 days) or auditing a historical period.
+        </p>
+
+        <h3>Response Deadline</h3>
+        <p>
+          Filters by when responses are due. Set the <strong>From</strong> field to today's date to
+          exclude already-expired solicitations, or set a narrow window to find contracts whose
+          deadlines are approaching soon.
+        </p>
+
+        <h3>Quick Filters</h3>
+        <p>
+          The row of pill buttons at the top of the page provides one-click shortcuts for the most
+          common veteran-owned business filter combinations:
+        </p>
+
+        <table class="data-table">
+          <thead>
+            <tr><th>Button</th><th>Filter applied</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>All SDVOSB</td><td>Set-Aside = SDVOSBC</td></tr>
+            <tr><td>SDVOSB Sole Source</td><td>Set-Aside = SDVOSBS</td></tr>
+            <tr><td>VOSB</td><td>Set-Aside = VSB</td></tr>
+            <tr><td>8(a)</td><td>Set-Aside = 8AN</td></tr>
+            <tr><td>HUBZone</td><td>Set-Aside = HZC</td></tr>
+            <tr><td>Sources Sought</td><td>Solicitation Type = r</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─── 9. Getting Future Updates ───────────────────── -->
+    <section class="section" id="s9">
+      <div class="section-header">
+        <div class="step-circle">9</div>
+        <h2>Getting Future Updates</h2>
+      </div>
+      <div class="card">
+        <p>Pull the latest code from the working branch:</p>
+
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>git pull origin claude/military-contract-search-tool-9hm2D</pre>
+        </div>
+
+        <h3>If new Python dependencies were added</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>cd backend
+<span class="prompt">PS&gt; </span>pip install -r requirements.txt</pre>
+        </div>
+
+        <h3>If new Node dependencies were added</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span>cd frontend
+<span class="prompt">PS&gt; </span>npm install</pre>
+        </div>
+
+        <h3>Restart the backend after pulling</h3>
+        <div class="code-block">
+          <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+          <pre><span class="prompt">PS&gt; </span><span class="comment"># Ctrl+C in the uvicorn terminal first, then:</span>
+<span class="prompt">PS&gt; </span>uvicorn main:app --reload --port 8000</pre>
+        </div>
+
+        <p>The Vite frontend hot-reloads automatically — no restart needed unless <code>package.json</code> changed.</p>
+      </div>
+    </section>
+
+    <!-- ─── 10. Troubleshooting ──────────────────────────── -->
+    <section class="section" id="s10">
+      <div class="section-header">
+        <div class="step-circle">10</div>
+        <h2>Troubleshooting</h2>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-title">.venv pip.exe is missing after <code>python -m venv .venv</code></div>
+        <div class="trouble-body">
+          <p>This happens when Python was installed from the Microsoft Store. The Store version ships without pip and cannot build working virtual environments.</p>
+          <p><strong>Fix:</strong></p>
+          <ol>
+            <li>Open <strong>Settings &rarr; Apps &rarr; Installed Apps</strong>, search for <code>Python</code>, and uninstall the Microsoft Store version.</li>
+            <li>Download the official installer from <a href="https://www.python.org/downloads/" target="_blank">python.org/downloads</a>.</li>
+            <li>During install, check <strong>"Add python.exe to PATH"</strong>.</li>
+            <li>Restart VS Code, then retry the backend setup steps.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-title">PowerShell blocks <code>.venv\Scripts\Activate.ps1</code> (Execution Policy)</div>
+        <div class="trouble-body">
+          <p>You'll see an error like: <em>"…cannot be loaded because running scripts is disabled on this system."</em></p>
+          <p>Run this command in PowerShell (as Administrator if needed):</p>
+          <div class="code-block">
+            <div class="code-block-header"><span class="lang-tag">PowerShell (Admin)</span></div>
+            <pre><span class="prompt">PS&gt; </span>Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser</pre>
+          </div>
+          <p>Then retry activating the virtual environment.</p>
+        </div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-title"><code>python</code> is not recognised as a command</div>
+        <div class="trouble-body">
+          <p>Windows may use <code>py</code> instead of <code>python</code>. Try:</p>
+          <div class="code-block">
+            <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+            <pre><span class="prompt">PS&gt; </span>py --version
+<span class="prompt">PS&gt; </span>py -m venv .venv
+<span class="prompt">PS&gt; </span>py -m pip install -r requirements.txt</pre>
+          </div>
+          <p>Alternatively, find where Python is installed and add it to your PATH manually via <strong>System Properties &rarr; Environment Variables &rarr; Path</strong>.</p>
+        </div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-title">Port 8000 or 5173 is already in use</div>
+        <div class="trouble-body">
+          <p>You'll see: <em>"ERROR: [Errno 98] Address already in use"</em></p>
+          <p>Find and stop the process occupying the port:</p>
+          <div class="code-block">
+            <div class="code-block-header"><span class="lang-tag">PowerShell</span></div>
+            <pre><span class="prompt">PS&gt; </span>netstat -ano | findstr :8000
+<span class="prompt">PS&gt; </span>taskkill /PID &lt;pid&gt; /F</pre>
+          </div>
+          <p>Note the PID from the last column of the first command, then use it in the second. Replace <code>:8000</code> with <code>:5173</code> to diagnose the Vite port.</p>
+        </div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-title">The yellow "API key not configured" banner appears</div>
+        <div class="trouble-body">
+          <p>Open <code>backend\.env</code> in a text editor and confirm:</p>
+          <ol>
+            <li>The file exists (not just <code>.env.example</code>).</li>
+            <li>The line reads <code>SAM_GOV_API_KEY=</code> followed by your actual key — not the placeholder <code>your_api_key_here</code>.</li>
+            <li>Save the file and restart the backend server.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-title">Search returns no results even with a valid key</div>
+        <div class="trouble-body">
+          <p>SAM.gov API keys can take up to 24 hours to activate after generation. If your key is brand new, wait and try again the following day. You can verify the key status at <a href="https://sam.gov/profile/details" target="_blank">sam.gov/profile/details</a>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── 11. Coming Next ──────────────────────────────── -->
+    <section class="section" id="s11">
+      <div class="section-header">
+        <div class="step-circle">11</div>
+        <h2>Coming Next</h2>
+      </div>
+      <div class="coming-next-card">
+        <h3>Web Deployment</h3>
+        <p>
+          Web deployment documentation is in progress. Once deployed, Horizon Search will be
+          accessible from any browser without local setup. Details will be added to this guide
+          when the hosted environment is configured.
+        </p>
+        <p style="color:rgba(255,255,255,0.8); margin-top:8px; font-size:14px;">
+          In the meantime, the application runs fully locally using the steps above.
+        </p>
+        <div class="placeholder-badge">In Progress</div>
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>
