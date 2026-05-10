@@ -1,5 +1,6 @@
 import httpx
 import os
+from datetime import datetime, timedelta
 from typing import Optional
 
 from models.contract import Contract, ContractSearchResult, ContactInfo
@@ -131,19 +132,24 @@ async def search_contracts(
         params["organizationName"] = agency
     if solicitation_type:
         params["ptype"] = solicitation_type
-    if posted_from:
-        params["postedFrom"] = posted_from
-    if posted_to:
-        params["postedTo"] = posted_to
     if response_deadline_from:
         params["rdlfrom"] = response_deadline_from
     if response_deadline_to:
         params["rdlto"] = response_deadline_to
     if state:
-        params["state"] = state
+        params["placeOfPerformanceState"] = state
 
-    # Always fetch active opportunities by default
-    params["status"] = "active"
+    # SAM.gov v2 requires a date range — default to last 90 days if none provided
+    fmt = "%m/%d/%Y"
+    if posted_from:
+        params["postedFrom"] = posted_from
+    else:
+        params["postedFrom"] = (datetime.utcnow() - timedelta(days=90)).strftime(fmt)
+
+    if posted_to:
+        params["postedTo"] = posted_to
+    else:
+        params["postedTo"] = datetime.utcnow().strftime(fmt)
 
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.get(SAM_BASE, params=params)
