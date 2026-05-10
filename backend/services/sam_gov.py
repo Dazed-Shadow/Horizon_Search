@@ -55,49 +55,52 @@ def _parse_contact(raw: dict) -> Optional[ContactInfo]:
     return None
 
 
-def _parse_opportunity(opp: dict) -> Contract:
-    pop = opp.get("placeOfPerformance") or {}
-    city = (pop.get("city") or {}).get("name", "")
-    state = (pop.get("state") or {}).get("code", "")
-    place = ", ".join(filter(None, [city, state])) or None
-
-    set_aside_code = opp.get("typeOfSetAside") or None
-    ptype = opp.get("type") or None
-
-    award = opp.get("award") or {}
+def _parse_opportunity(opp: dict) -> Optional[Contract]:
     try:
-        award_amount = float(award.get("amount", 0) or 0) or None
-    except (ValueError, TypeError):
-        award_amount = None
+        pop = opp.get("placeOfPerformance") or {}
+        city = (pop.get("city") or {}).get("name", "")
+        state = (pop.get("state") or {}).get("code", "")
+        place = ", ".join(filter(None, [city, state])) or None
 
-    raw_contact = opp.get("pointOfContact")
-    if isinstance(raw_contact, list):
-        contact = _parse_contact(raw_contact[0] if raw_contact else None)
-    else:
-        contact = _parse_contact(raw_contact)
+        set_aside_code = opp.get("typeOfSetAside") or None
+        ptype = opp.get("type") or None
 
-    return Contract(
-        notice_id=opp.get("noticeId", ""),
-        title=opp.get("title", "Untitled"),
-        solicitation_number=opp.get("solicitationNumber"),
-        agency=opp.get("department") or opp.get("organizationName"),
-        sub_agency=opp.get("subtier"),
-        office=opp.get("office"),
-        posted_date=opp.get("postedDate"),
-        response_deadline=opp.get("responseDeadLine"),
-        solicitation_type=ptype,
-        solicitation_type_label=SOLICITATION_TYPE_LABELS.get(ptype, ptype),
-        set_aside_code=set_aside_code,
-        set_aside_label=SET_ASIDE_LABELS.get(set_aside_code, set_aside_code),
-        naics_code=opp.get("naicsCode"),
-        naics_description=opp.get("classificationCode"),
-        place_of_performance=place,
-        description=opp.get("description"),
-        active=opp.get("active") == "Yes" if opp.get("active") else None,
-        award_amount=award_amount,
-        ui_link=opp.get("uiLink"),
-        contact=contact,
-    )
+        award = opp.get("award") or {}
+        try:
+            award_amount = float(award.get("amount", 0) or 0) or None
+        except (ValueError, TypeError):
+            award_amount = None
+
+        raw_contact = opp.get("pointOfContact")
+        if isinstance(raw_contact, list):
+            contact = _parse_contact(raw_contact[0] if raw_contact else None)
+        else:
+            contact = _parse_contact(raw_contact)
+
+        return Contract(
+            notice_id=str(opp.get("noticeId") or ""),
+            title=str(opp.get("title") or "Untitled"),
+            solicitation_number=opp.get("solicitationNumber"),
+            agency=opp.get("department") or opp.get("organizationName"),
+            sub_agency=opp.get("subtier"),
+            office=opp.get("office"),
+            posted_date=opp.get("postedDate"),
+            response_deadline=opp.get("responseDeadLine"),
+            solicitation_type=ptype,
+            solicitation_type_label=SOLICITATION_TYPE_LABELS.get(ptype, ptype),
+            set_aside_code=set_aside_code,
+            set_aside_label=SET_ASIDE_LABELS.get(set_aside_code, set_aside_code),
+            naics_code=opp.get("naicsCode"),
+            naics_description=opp.get("classificationCode"),
+            place_of_performance=place,
+            description=opp.get("description"),
+            active=opp.get("active") == "Yes" if opp.get("active") else None,
+            award_amount=award_amount,
+            ui_link=opp.get("uiLink"),
+            contact=contact,
+        )
+    except Exception:
+        return None
 
 
 AWARDED_PTYPES = {"a", "u"}  # Award Notice, Justification — not biddable
@@ -162,7 +165,7 @@ async def search_contracts(
     opportunities = data.get("opportunitiesData", []) or []
     total = data.get("totalRecords", len(opportunities))
 
-    contracts = [_parse_opportunity(o) for o in opportunities]
+    contracts = [c for o in opportunities if (c := _parse_opportunity(o)) is not None]
 
     if open_only and not solicitation_type:
         contracts = [c for c in contracts if c.solicitation_type not in AWARDED_PTYPES]

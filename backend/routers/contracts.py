@@ -1,5 +1,8 @@
+import logging
 from fastapi import APIRouter, Query, HTTPException
 from typing import Optional
+
+log = logging.getLogger(__name__)
 
 from services.sam_gov import search_contracts, SET_ASIDE_LABELS, SOLICITATION_TYPE_LABELS
 from models.contract import ContractSearchResult
@@ -39,7 +42,10 @@ async def search(
             limit=limit,
             offset=offset,
         )
+    except HTTPException:
+        raise
     except Exception as exc:
+        log.exception("Search failed")
         raise HTTPException(status_code=502, detail=f"SAM.gov API error: {str(exc)}")
 
 
