@@ -17,6 +17,25 @@ function EmptyState({ hasFilters }) {
   );
 }
 
+function RateLimitState() {
+  return (
+    <div className="text-center py-16">
+      <svg className="w-14 h-14 mx-auto mb-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <p className="text-lg font-semibold text-amber-600">Search limit reached</p>
+      <p className="text-sm text-gray-500 mt-2 max-w-sm mx-auto">
+        The SAM.gov free API allows a limited number of searches per day.
+        Wait a few minutes and try again — your results will be back shortly.
+      </p>
+      <p className="text-xs text-gray-400 mt-3">
+        Tip: repeated searches for the same filters are cached and won't use your quota.
+      </p>
+    </div>
+  );
+}
+
 function ErrorState({ message }) {
   return (
     <div className="text-center py-16">
@@ -53,6 +72,7 @@ export default function ContractList({ results, loading, error, page, limit, onP
     );
   }
 
+  if (error === "__RATE_LIMIT__") return <RateLimitState />;
   if (error) return <ErrorState message={error} />;
   if (!results) return <EmptyState hasFilters={false} />;
   if (results.contracts.length === 0) return <EmptyState hasFilters={hasFilters} />;

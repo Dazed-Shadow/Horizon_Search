@@ -40,13 +40,14 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ## [2026-05-10] API calls getting blocked after too many searches
 **Type:** Bug / Enhancement
-**Priority:** High
-**Tags:** #api #perf #backend
-**Detail:** SAM.gov free-tier API has rate limits (roughly 1,000 calls/day per key). Rapid searching or filter changes hit this quickly in dev and will hit it even faster once deployed to real users. Two things needed:
-1. **Backend response cache** — cache SAM.gov results by query fingerprint for ~5 minutes so the same search doesn't re-hit the API
-2. **Frontend search debounce** — don't fire a new API call on every filter click; wait ~400ms after the last change before sending
-3. **User-facing 429 handling** — when we do hit the limit, show a clear "Search limit reached — try again in a few minutes" message instead of a generic error
-**Resolution:** Pending
+**Priority:** High — FIXED
+**Tags:** #api #perf #backend #frontend
+**Detail:** SAM.gov free-tier API has rate limits (roughly 1,000 calls/day per key). Rapid searching or filter changes hit this quickly in dev and will hit it even faster once deployed to real users.
+**Resolution:** Three changes shipped together:
+1. **Backend 5-minute TTL cache** (`services/sam_gov.py`) — identical searches within 5 min are served from memory; `_cache_key()` hashes all params except the API key. Cache cleared between test runs via `autouse` fixture.
+2. **429 handling in router** (`routers/contracts.py`) — `httpx.HTTPStatusError` with status 429 is now caught before the generic `Exception` handler and re-raised as `HTTPException(429, "SAM.gov daily search limit reached...")` instead of a confusing 502.
+3. **Rate-limit UI** (`ContractList.jsx` / `useContracts.js`) — frontend detects `res.status === 429` and shows an amber clock icon with a calm "Search limit reached — wait a few minutes" message instead of the generic red error. Also notes that cached searches won't burn quota.
+Tests: `test_search_sam_gov_429`, `test_cache_avoids_duplicate_sam_requests`. Commit: see push.
 
 ---
 

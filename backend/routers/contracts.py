@@ -1,4 +1,5 @@
 import logging
+import httpx
 from fastapi import APIRouter, Query, HTTPException
 from typing import Optional
 
@@ -44,6 +45,14 @@ async def search(
         )
     except HTTPException:
         raise
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 429:
+            raise HTTPException(
+                status_code=429,
+                detail="SAM.gov daily search limit reached. Please wait a few minutes and try again.",
+            )
+        log.error("SAM.gov HTTP error %s", exc.response.status_code)
+        raise HTTPException(status_code=502, detail=f"SAM.gov returned {exc.response.status_code}")
     except Exception as exc:
         log.exception("Search failed")
         raise HTTPException(status_code=502, detail=f"SAM.gov API error: {str(exc)}")

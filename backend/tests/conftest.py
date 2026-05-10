@@ -16,6 +16,15 @@ async def client():
         yield ac
 
 
+@pytest.fixture(autouse=True)
+def clear_sam_cache():
+    """Wipe the in-memory SAM.gov cache before every test so tests don't bleed."""
+    from services.sam_gov import _response_cache
+    _response_cache.clear()
+    yield
+    _response_cache.clear()
+
+
 # Minimal SAM.gov opportunity payload
 SAMPLE_OPPORTUNITY = {
     "noticeId": "abc123",

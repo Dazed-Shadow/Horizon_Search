@@ -136,6 +136,34 @@ async def test_pagination_params(client):
 
 
 @pytest.mark.asyncio
+async def test_search_sam_gov_429(client):
+    """SAM.gov returning 429 → our API returns 429 with a user-friendly message."""
+    with respx.mock as mock:
+        mock.route(url__startswith=SAM_URL).mock(return_value=httpx.Response(429))
+        r = await client.get("/api/contracts/search")
+    assert r.status_code == 429
+    assert "limit" in r.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_cache_avoids_duplicate_sam_requests(client):
+    """Second identical search is served from cache — SAM.gov called only once."""
+    with respx.mock as mock:
+        route = mock.route(url__startswith=SAM_URL).mock(
+            return_value=httpx.Response(200, json={
+                "totalRecords": 1,
+                "opportunitiesData": [SAMPLE_OPPORTUNITY],
+            })
+        )
+        r1 = await client.get("/api/contracts/search", params={"keyword": "cache_test_unique"})
+        r2 = await client.get("/api/contracts/search", params={"keyword": "cache_test_unique"})
+    assert r1.status_code == 200
+    assert r2.status_code == 200
+    assert r1.json() == r2.json()
+    assert route.call_count == 1  # SAM.gov hit only once
+
+
+@pytest.mark.asyncio
 async def test_limit_max_capped(client):
     """limit > 100 should be rejected by FastAPI validation."""
     r = await client.get("/api/contracts/search", params={"limit": 999})

@@ -1,11 +1,37 @@
+import hashlib
 import httpx
 import os
+import time
 from datetime import datetime, timedelta
 from typing import Optional
 
 from models.contract import Contract, ContractSearchResult, ContactInfo
 
 SAM_BASE = "https://api.sam.gov/opportunities/v2/search"
+
+# ---------------------------------------------------------------------------
+# Simple in-memory response cache — avoids burning SAM.gov API quota on
+# repeat searches. Cache entries expire after CACHE_TTL seconds.
+# ---------------------------------------------------------------------------
+_CACHE_TTL = 300  # 5 minutes
+_response_cache: dict = {}
+
+
+def _cache_key(params: dict) -> str:
+    """SHA-256 fingerprint of query params, excluding the API key."""
+    relevant = sorted((k, str(v)) for k, v in params.items() if k != "api_key")
+    return hashlib.sha256(str(relevant).encode()).hexdigest()[:20]
+
+
+def _cache_get(key: str) -> Optional[ContractSearchResult]:
+    entry = _response_cache.get(key)
+    if entry and (time.monotonic() - entry["ts"]) < _CACHE_TTL:
+        return entry["result"]
+    return None
+
+
+def _cache_set(key: str, result: ContractSearchResult) -> None:
+    _response_cache[key] = {"result": result, "ts": time.monotonic()}
 
 # SAM.gov set-aside codes -> human-readable labels
 SET_ASIDE_LABELS = {
@@ -169,6 +195,12 @@ async def search_contracts(
     else:
         params["postedTo"] = datetime.utcnow().strftime(fmt)
 
+    # Return cached result if still fresh
+    key = _cache_key(params)
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.get(SAM_BASE, params=params)
         response.raise_for_status()
@@ -182,9 +214,11 @@ async def search_contracts(
     if open_only and not solicitation_type:
         contracts = [c for c in contracts if c.solicitation_type not in AWARDED_PTYPES]
 
-    return ContractSearchResult(
+    result = ContractSearchResult(
         total=total,
         limit=limit,
         offset=offset,
         contracts=contracts,
     )
+    _cache_set(key, result)
+    return result

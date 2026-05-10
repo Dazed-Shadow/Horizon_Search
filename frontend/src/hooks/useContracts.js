@@ -42,6 +42,9 @@ export function useContracts() {
       });
 
       if (!res.ok) {
+        if (res.status === 429) {
+          throw new Error("__RATE_LIMIT__");
+        }
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail || `Server error ${res.status}`);
       }
