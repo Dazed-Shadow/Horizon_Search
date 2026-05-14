@@ -4,6 +4,7 @@ import { NavLink } from "react-router-dom";
 const NAV_LINKS = [
   { to: "/",          label: "Search Contracts" },
   { to: "/licensing", label: "Licensing & Certs" },
+  { to: "/primer",    label: "How to Win" },
 ];
 
 export default function Navbar() {

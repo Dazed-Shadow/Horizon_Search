@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import SearchPage from "./pages/SearchPage";
 import LicensingPage from "./pages/LicensingPage";
+import ContractPrimerPage from "./pages/ContractPrimerPage";
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<SearchPage />} />
         <Route path="/licensing" element={<LicensingPage />} />
+        <Route path="/primer" element={<ContractPrimerPage />} />
       </Routes>
       <footer className="border-t border-gray-200 mt-auto py-5 text-center text-xs text-gray-400">
         Horizon Search · Contract data sourced from{" "}
