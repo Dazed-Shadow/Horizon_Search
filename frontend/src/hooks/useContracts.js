@@ -37,7 +37,8 @@ export function useContracts() {
     try {
       const { open_only, ...apiFilters } = activeFilters;
     const qs = buildQueryString({ ...apiFilters, open_only: open_only ? "true" : "false", limit, offset });
-      const res = await fetch(`/api/contracts/search?${qs}`, {
+      const API_BASE = import.meta.env.VITE_API_URL ?? "";
+      const res = await fetch(`${API_BASE}/api/contracts/search?${qs}`, {
         signal: abortRef.current.signal,
       });
 
