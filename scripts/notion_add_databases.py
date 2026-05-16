@@ -19,7 +19,13 @@ import os
 import sys
 from pathlib import Path
 
-ENV_FILE = Path(__file__).parent.parent / "backend" / ".env"
+# Ensure scripts/ is on the path so notion_client is importable
+# regardless of which directory Python is launched from.
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+ENV_FILE = SCRIPTS_DIR.parent / "backend" / ".env"
 
 # Load .env before importing notion_client
 if ENV_FILE.exists():

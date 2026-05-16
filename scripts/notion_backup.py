@@ -23,8 +23,14 @@ import json
 from pathlib import Path
 from datetime import datetime, timezone
 
-ENV_FILE = Path(__file__).parent.parent / "backend" / ".env"
-BACKUP_DIR = Path(__file__).parent / "backups"
+# Ensure scripts/ is on the path so notion_client is importable
+# regardless of which directory Python is launched from.
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+ENV_FILE = SCRIPTS_DIR.parent / "backend" / ".env"
+BACKUP_DIR = SCRIPTS_DIR / "backups"
 
 # Load .env
 if ENV_FILE.exists():
