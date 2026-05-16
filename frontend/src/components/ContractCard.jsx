@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { formatDate, formatCurrency, deadlineStatus } from "../utils/formatters";
 import { SET_ASIDE_COLORS, VETERAN_CODES } from "../utils/constants";
 
@@ -22,8 +22,7 @@ function SetAsideBadge({ code, label }) {
 
 const AWARDED_TYPES = new Set(["a", "u"]);
 
-export default function ContractCard({ contract }) {
-  const [expanded, setExpanded] = useState(false);
+export default function ContractCard({ contract, onOpen }) {
   const deadline = deadlineStatus(contract.response_deadline);
   const isAwarded = AWARDED_TYPES.has(contract.solicitation_type);
 
@@ -34,9 +33,14 @@ export default function ContractCard({ contract }) {
       {/* Header row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 leading-snug line-clamp-2 mb-1">
+          <button
+            type="button"
+            onClick={() => onOpen(contract)}
+            className="text-left font-semibold text-gray-900 leading-snug line-clamp-2 mb-1
+                       hover:text-brand-700 transition w-full"
+          >
             {contract.title}
-          </h3>
+          </button>
           <p className="text-sm text-gray-500 truncate">
             {[contract.agency, contract.sub_agency, contract.office]
               .filter(Boolean).join(" › ")}
@@ -56,7 +60,7 @@ export default function ContractCard({ contract }) {
               className="text-brand-600 hover:text-brand-700 border border-brand-200
                          hover:bg-brand-50 rounded-lg px-3 py-1.5 text-xs font-semibold transition"
             >
-              View on SAM.gov ↗
+              SAM.gov ↗
             </a>
           )}
         </div>
@@ -113,44 +117,15 @@ export default function ContractCard({ contract }) {
         </div>
       </div>
 
-      {/* Expandable description + contact */}
-      {(contract.description || contract.contact) && (
-        <div className="mt-3">
-          <button
-            className="text-xs text-brand-600 hover:underline"
-            onClick={() => setExpanded(e => !e)}
-          >
-            {expanded ? "Show less" : "Show description & contact"}
-          </button>
-
-          {expanded && (
-            <div className="mt-3 space-y-3">
-              {contract.description && (
-                <div className="text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto whitespace-pre-line">
-                  {contract.description}
-                </div>
-              )}
-              {contract.contact && (
-                <div className="text-sm text-gray-600">
-                  <p className="font-semibold text-gray-700 mb-1">Point of Contact</p>
-                  <div className="space-y-0.5">
-                    {contract.contact.name && <p>{contract.contact.name}</p>}
-                    {contract.contact.email && (
-                      <p>
-                        <a href={`mailto:${contract.contact.email}`}
-                          className="text-brand-600 hover:underline">
-                          {contract.contact.email}
-                        </a>
-                      </p>
-                    )}
-                    {contract.contact.phone && <p>{contract.contact.phone}</p>}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* View details link */}
+      <div className="mt-4 flex items-center justify-end">
+        <button
+          onClick={() => onOpen(contract)}
+          className="text-sm font-semibold text-brand-700 hover:text-brand-800 hover:underline"
+        >
+          View details →
+        </button>
+      </div>
     </article>
   );
 }

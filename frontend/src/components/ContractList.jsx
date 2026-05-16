@@ -49,7 +49,7 @@ function ErrorState({ message }) {
   );
 }
 
-export default function ContractList({ results, loading, error, page, limit, onPageChange, hasFilters }) {
+export default function ContractList({ results, loading, error, page, limit, onPageChange, hasFilters, onOpenContract }) {
   if (loading) {
     return (
       <div className="space-y-4">
@@ -85,7 +85,7 @@ export default function ContractList({ results, loading, error, page, limit, onP
 
       <div className="space-y-4">
         {results.contracts.map(contract => (
-          <ContractCard key={contract.notice_id} contract={contract} />
+          <ContractCard key={contract.notice_id} contract={contract} onOpen={onOpenContract} />
         ))}
       </div>
 

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from "react";
 import SearchBar from "../components/SearchBar";
 import FilterPanel from "../components/FilterPanel";
 import ContractList from "../components/ContractList";
+import ContractDetailDrawer from "../components/ContractDetailDrawer";
 import { useContracts } from "../hooks/useContracts";
 
 const QUICK_FILTERS = [
   { label: "All SDVOSB",       set_aside: "SDVOSBC" },
   { label: "SDVOSB Sole Source", set_aside: "SDVOSBS" },
-  { label: "VOSB",              set_aside: "VSB" },
+  { label: "VOSB",              set_aside: "VOSB" },
   { label: "8(a)",              set_aside: "8AN" },
   { label: "HUBZone",           set_aside: "HZC" },
   { label: "Sources Sought",    solicitation_type: "r" },
@@ -45,6 +46,7 @@ export default function SearchPage() {
   const { filters, updateFilter, resetFilters, results, loading, error, page, limit, search, goToPage } = useContracts();
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [selectedContract, setSelectedContract] = useState(null);
 
   useEffect(() => {
     fetch("/api/config/status")
@@ -71,6 +73,10 @@ export default function SearchPage() {
 
   return (
     <>
+      <ContractDetailDrawer
+        contract={selectedContract}
+        onClose={() => setSelectedContract(null)}
+      />
       {apiKeyMissing && !bannerDismissed && <ApiKeyBanner onDismiss={() => setBannerDismissed(true)} />}
 
       {/* Hero search bar */}
@@ -152,6 +158,7 @@ export default function SearchPage() {
               limit={limit}
               onPageChange={goToPage}
               hasFilters={hasActiveFilters || filters.keyword !== ""}
+              onOpenContract={setSelectedContract}
             />
 
             {!results && !loading && (

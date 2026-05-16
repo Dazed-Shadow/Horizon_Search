@@ -51,9 +51,22 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ## [2026-05-15] VSB code may not match SAM.gov VOSB parameter
 **Type:** Bug
-**Priority:** Medium — OPEN
+**Priority:** Medium — FIXED
 **Tags:** #api #bug #frontend
-**Detail:** The "Veteran-Owned Small Business" quick link sends `set_aside=VSB` but SAM.gov typically uses `VOSB`. Filter likely returns 0 results because the code doesn't match. Needs verification against SAM.gov API docs and constants.js update if confirmed.
+**Detail:** The "Veteran-Owned Small Business" quick link sent `set_aside=VSB` but SAM.gov uses `VOSB`. Filter returned 0 results.
+**Resolution:** Changed QUICK_FILTERS in SearchPage.jsx from `set_aside: "VSB"` to `set_aside: "VOSB"`. Fixed alongside contract detail drawer in same commit.
+
+---
+
+## [2026-05-17] Contract detail drawer — deferred items
+**Type:** Enhancement
+**Priority:** Low — OPEN
+**Tags:** #frontend #ux
+**Detail:** Items intentionally deferred from the Session A drawer implementation:
+- Full keyboard focus trap (tab cycling within open drawer)
+- Deep-link via `?notice=` query param for shareable contract URLs
+- Slide-in animation (currently snaps in, no transition)
+- Save for later / bookmark functionality (button is present but disabled)
 
 ---
 
