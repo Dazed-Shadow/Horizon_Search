@@ -20,3 +20,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Notion backups — local snapshots only, never commit
+scripts/backups/

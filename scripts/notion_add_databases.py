@@ -2,9 +2,10 @@
 Adds the Changes and Test Scenarios databases to an existing
 PROJECT-HORIZON_SEARCH Notion workspace.
 
-Run this if you already ran notion_setup.py and just need the two new DBs.
-It reads NOTION_ROOT_PAGE_ID from backend/.env (same as setup) and will NOT
-touch any databases that already exist.
+Safe to run multiple times — uses get_or_create_database() which checks
+whether each database already exists in Notion before creating it.
+If a database ID is found in .env and is still alive, it is skipped entirely.
+If it was deleted in Notion, it is recreated and the .env is updated.
 
 Usage:
   python scripts/notion_add_databases.py
@@ -18,17 +19,18 @@ import os
 import sys
 from pathlib import Path
 
-# Load .env from backend directory
-env_path = Path(__file__).parent.parent / "backend" / ".env"
-if env_path.exists():
-    for line in env_path.read_text().splitlines():
+ENV_FILE = Path(__file__).parent.parent / "backend" / ".env"
+
+# Load .env before importing notion_client
+if ENV_FILE.exists():
+    for line in ENV_FILE.read_text().splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             k, _, v = line.partition("=")
             os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
 from notion_client import (
-    create_database, create_page, rich_text, paragraph_block,
+    get_or_create_database, create_page, rich_text, paragraph_block,
 )
 
 ROOT_PAGE_ID = os.getenv("NOTION_ROOT_PAGE_ID", "")
@@ -165,33 +167,30 @@ def seed_changes(db_id: str):
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    print(f"\nAdding new databases to existing Notion workspace...")
+    print(f"\nAdding Changes and Test Scenarios databases (idempotent — safe to re-run)...")
     print(f"Root page ID: {ROOT_PAGE_ID}\n")
-    print("Existing databases (Decisions, Backlog, Session Log, Reference) are untouched.\n")
 
-    print("Creating Changes database...")
-    changes_db = create_database(ROOT_PAGE_ID, "Changes", CHANGES_PROPS)
-    changes_id = changes_db["id"]
-    seed_changes(changes_id)
-    print(f"  ✓ Changes DB: {changes_id}\n")
-
-    print("Creating Test Scenarios database...")
-    tests_db = create_database(ROOT_PAGE_ID, "Test Scenarios", TEST_SCENARIOS_PROPS)
-    tests_id = tests_db["id"]
-    seed_test_scenarios(tests_id)
-    print(f"  ✓ Test Scenarios DB: {tests_id}\n")
-
-    # Append only the new IDs to .env
-    ids_block = (
-        f"\n# New Notion Database IDs (written by notion_add_databases.py)\n"
-        f"NOTION_CHANGES_DB={changes_id}\n"
-        f"NOTION_TESTS_DB={tests_id}\n"
+    print("Changes database...")
+    changes_id, created = get_or_create_database(
+        ROOT_PAGE_ID, "Changes", CHANGES_PROPS, "NOTION_CHANGES_DB", ENV_FILE,
     )
-    env_file = Path(__file__).parent.parent / "backend" / ".env"
-    with open(env_file, "a") as f:
-        f.write(ids_block)
-    print(f"New database IDs appended to backend/.env")
-    print("\nDone. Open Notion to verify the two new databases.")
+    if created:
+        seed_changes(changes_id)
+        print(f"  ✓ Created and seeded: {changes_id}\n")
+    else:
+        print(f"  ✓ Already exists: {changes_id}\n")
+
+    print("Test Scenarios database...")
+    tests_id, created = get_or_create_database(
+        ROOT_PAGE_ID, "Test Scenarios", TEST_SCENARIOS_PROPS, "NOTION_TESTS_DB", ENV_FILE,
+    )
+    if created:
+        seed_test_scenarios(tests_id)
+        print(f"  ✓ Created and seeded: {tests_id}\n")
+    else:
+        print(f"  ✓ Already exists: {tests_id}\n")
+
+    print("Done. Run notion_backup.py at any time to snapshot all databases to JSON.")
 
 
 if __name__ == "__main__":
