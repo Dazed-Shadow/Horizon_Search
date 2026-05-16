@@ -38,6 +38,25 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-05-16] Reviewing Suggested Enhancements
+**Type:** Enhancement
+**Priority:** High — OPEN
+**Tags:** #enhancement #api #backend #frontend #deploy #docs
+**Detail:** Next two sessions scoped as follows:
+- **Session A (next):** Contract detail drawer/modal + NAICS code discovery helper
+- **Session B (after):** Deadline urgency indicators + Sort controls
+- **Longer term goal:** Saved searches, bookmark/watch list, contract value filter, email digest, teaming board. Outreach and inclusivity for newcomers is the north star for all decisions on this project.
+
+---
+
+## [2026-05-15] VSB code may not match SAM.gov VOSB parameter
+**Type:** Bug
+**Priority:** Medium — OPEN
+**Tags:** #api #bug #frontend
+**Detail:** The "Veteran-Owned Small Business" quick link sends `set_aside=VSB` but SAM.gov typically uses `VOSB`. Filter likely returns 0 results because the code doesn't match. Needs verification against SAM.gov API docs and constants.js update if confirmed.
+
+---
+
 ## [2026-05-10] API calls getting blocked after too many searches
 **Type:** Bug / Enhancement
 **Priority:** High — FIXED
