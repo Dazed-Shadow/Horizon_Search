@@ -2,6 +2,15 @@ import React from "react";
 import { formatDate, formatCurrency, deadlineStatus } from "../utils/formatters";
 import { SET_ASIDE_COLORS, VETERAN_CODES } from "../utils/constants";
 
+// Deadline urgency indicators: color-coded top strip so users scanning a list immediately see closing-soon contracts.
+// Map urgency tier to Tailwind background/text pair; "normal" receives no strip.
+const URGENCY_STRIP = {
+  closed:     "bg-gray-100 text-gray-600",
+  critical:   "bg-red-100 text-red-800",
+  soon:       "bg-orange-100 text-orange-800",
+  approaching:"bg-yellow-100 text-yellow-800",
+};
+
 function SetAsideBadge({ code, label }) {
   if (!label) return null;
   const group = VETERAN_CODES.has(code) ? "Veteran"
@@ -22,14 +31,26 @@ function SetAsideBadge({ code, label }) {
 
 const AWARDED_TYPES = new Set(["a", "u"]);
 
-export default function ContractCard({ contract, onOpen }) {
+// Bookmark / watch list: each card shows a filled/outline icon so users can pin contracts without opening the drawer.
+// Receives isBookmarked bool and onToggleBookmark callback from SearchPage via ContractList.
+export default function ContractCard({ contract, onOpen, isBookmarked, onToggleBookmark }) {
   const deadline = deadlineStatus(contract.response_deadline);
   const isAwarded = AWARDED_TYPES.has(contract.solicitation_type);
+  const bookmarked = isBookmarked?.(contract.notice_id) ?? false;
 
   return (
-    <article className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition p-5 ${
+    <article className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition overflow-hidden ${
       isAwarded ? "border-gray-200 opacity-80" : "border-gray-200"
     }`}>
+
+      {/* Urgency strip — rendered only for ≤14d and closed; normal contracts show no strip */}
+      {deadline && deadline.urgency !== "normal" && (
+        <div className={`px-5 py-1.5 text-xs font-semibold ${URGENCY_STRIP[deadline.urgency]}`}>
+          {deadline.stripLabel}
+        </div>
+      )}
+
+      <div className="p-5">
       {/* Header row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -47,6 +68,22 @@ export default function ContractCard({ contract, onOpen }) {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* Bookmark toggle — filled star when saved, outline when not */}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleBookmark?.(contract); }}
+            aria-label={bookmarked ? "Remove bookmark" : "Save for later"}
+            className={`p-1 rounded-lg transition ${
+              bookmarked
+                ? "text-amber-500 hover:text-amber-600"
+                : "text-gray-300 hover:text-amber-400"
+            }`}
+          >
+            <svg className="w-4 h-4" fill={bookmarked ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+          </button>
           {isAwarded && (
             <span className="badge bg-gray-100 text-gray-500 border border-gray-200">
               Already Awarded
@@ -125,6 +162,7 @@ export default function ContractCard({ contract, onOpen }) {
         >
           View details →
         </button>
+      </div>
       </div>
     </article>
   );

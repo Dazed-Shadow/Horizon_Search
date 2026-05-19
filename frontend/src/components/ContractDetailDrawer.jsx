@@ -50,7 +50,9 @@ function ExplainerCard({ heading, title, summary, eligibilityLabel, eligibility,
   );
 }
 
-export default function ContractDetailDrawer({ contract, onClose }) {
+// Bookmark / watch list: drawer footer "Save for later" wires to the same useBookmarks toggle as the card icon.
+// Receives isBookmarked bool-returning fn and onToggleBookmark callback from SearchPage.
+export default function ContractDetailDrawer({ contract, onClose, isBookmarked, onToggleBookmark }) {
   const closeButtonRef = useRef(null);
   const bodyRef = useRef(null);
   const [copied, setCopied] = useState(false);
@@ -78,6 +80,8 @@ export default function ContractDetailDrawer({ contract, onClose }) {
   }, [contract?.notice_id]);
 
   if (!contract) return null;
+
+  const bookmarked = isBookmarked?.(contract.notice_id) ?? false;
 
   const setAsideExplainer = contract.set_aside_code
     ? (SET_ASIDE_EXPLANATIONS[contract.set_aside_code] ?? null)
@@ -361,12 +365,14 @@ export default function ContractDetailDrawer({ contract, onClose }) {
             <div className="flex-1" />
           )}
           <button
-            disabled
-            title="Coming soon"
-            className="text-sm font-semibold border border-gray-200 text-gray-400
-                       rounded-lg px-4 py-2.5 cursor-not-allowed"
+            onClick={() => onToggleBookmark?.(contract)}
+            className={`text-sm font-semibold border rounded-lg px-4 py-2.5 transition ${
+              bookmarked
+                ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                : "border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}
           >
-            Save for later
+            {bookmarked ? "Saved ✓" : "Save for later"}
           </button>
         </footer>
       </aside>

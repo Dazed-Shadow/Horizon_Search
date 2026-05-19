@@ -3,7 +3,9 @@ import SearchBar from "../components/SearchBar";
 import FilterPanel from "../components/FilterPanel";
 import ContractList from "../components/ContractList";
 import ContractDetailDrawer from "../components/ContractDetailDrawer";
+import BookmarksPanel from "../components/BookmarksPanel";
 import { useContracts } from "../hooks/useContracts";
+import { useBookmarks } from "../hooks/useBookmarks";
 
 const QUICK_FILTERS = [
   { label: "All SDVOSB",       set_aside: "SDVOSBC" },
@@ -43,10 +45,13 @@ function ApiKeyBanner({ onDismiss }) {
 }
 
 export default function SearchPage() {
-  const { filters, updateFilter, resetFilters, results, loading, error, page, limit, search, goToPage } = useContracts();
+  const { filters, updateFilter, resetFilters, results, loading, error, page, limit, search, goToPage,
+    sortBy, setSortBy, sortedContracts } = useContracts();
+  const { bookmarks, isBookmarked, toggleBookmark, removeBookmark, count: bookmarkCount } = useBookmarks();
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
+  const [bookmarksPanelOpen, setBookmarksPanelOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/config/status")
@@ -71,12 +76,32 @@ export default function SearchPage() {
     return false;
   }
 
+  function openBookmarksPanel() {
+    setSelectedContract(null);
+    setBookmarksPanelOpen(true);
+  }
+
+  function openContractFromBookmarks(contract) {
+    setBookmarksPanelOpen(false);
+    setSelectedContract(contract);
+  }
+
   return (
     <>
       <ContractDetailDrawer
         contract={selectedContract}
         onClose={() => setSelectedContract(null)}
+        isBookmarked={isBookmarked}
+        onToggleBookmark={toggleBookmark}
       />
+      {bookmarksPanelOpen && (
+        <BookmarksPanel
+          bookmarks={bookmarks}
+          onClose={() => setBookmarksPanelOpen(false)}
+          onOpen={openContractFromBookmarks}
+          onRemove={removeBookmark}
+        />
+      )}
       {apiKeyMissing && !bannerDismissed && <ApiKeyBanner onDismiss={() => setBannerDismissed(true)} />}
 
       {/* Hero search bar */}
@@ -106,6 +131,16 @@ export default function SearchPage() {
                 {qf.label}
               </button>
             ))}
+            <button
+              onClick={openBookmarksPanel}
+              className={`ml-auto text-xs px-3 py-1.5 rounded-full font-medium transition border ${
+                bookmarkCount > 0
+                  ? "bg-amber-400/20 text-amber-200 border-amber-400/40 hover:bg-amber-400/30"
+                  : "bg-white/10 text-white/60 border-white/20 hover:bg-white/20"
+              }`}
+            >
+              {bookmarkCount > 0 ? `Saved (${bookmarkCount})` : "Saved"}
+            </button>
           </div>
         </div>
       </div>
@@ -159,6 +194,11 @@ export default function SearchPage() {
               onPageChange={goToPage}
               hasFilters={hasActiveFilters || filters.keyword !== ""}
               onOpenContract={setSelectedContract}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              sortedContracts={sortedContracts}
+              isBookmarked={isBookmarked}
+              onToggleBookmark={toggleBookmark}
             />
 
             {!results && !loading && (

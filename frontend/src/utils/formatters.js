@@ -21,16 +21,18 @@ export function formatCurrency(amount) {
   }).format(amount);
 }
 
+// Deadline urgency indicators: cards and the drawer both need urgency level and a human-readable strip label.
+// Extend the existing return shape with `urgency` tier and `stripLabel`; callers that only read `label`/`color` are unaffected.
 export function deadlineStatus(deadlineStr) {
   if (!deadlineStr) return null;
   const now = new Date();
   const deadline = new Date(deadlineStr);
   const diffDays = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return { label: "Closed", color: "text-red-600" };
-  if (diffDays <= 3) return { label: `${diffDays}d left`, color: "text-red-500 font-semibold" };
-  if (diffDays <= 7) return { label: `${diffDays}d left`, color: "text-orange-500 font-semibold" };
-  if (diffDays <= 14) return { label: `${diffDays}d left`, color: "text-yellow-600" };
-  return { label: `${diffDays}d left`, color: "text-gray-500" };
+  if (diffDays < 0) return { label: "Closed",          color: "text-red-600",              urgency: "closed",     stripLabel: "Closed" };
+  if (diffDays <= 3) return { label: `${diffDays}d left`, color: "text-red-500 font-semibold",  urgency: "critical",   stripLabel: `Closes in ${diffDays}d` };
+  if (diffDays <= 7) return { label: `${diffDays}d left`, color: "text-orange-500 font-semibold", urgency: "soon",     stripLabel: `Closes in ${diffDays}d` };
+  if (diffDays <= 14) return { label: `${diffDays}d left`, color: "text-yellow-600",            urgency: "approaching", stripLabel: `Closes in ${diffDays}d` };
+  return { label: `${diffDays}d left`, color: "text-gray-500", urgency: "normal", stripLabel: null };
 }
 
 export function buildQueryString(params) {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { buildQueryString } from "../utils/formatters";
 
 const INITIAL_FILTERS = {
@@ -15,12 +15,15 @@ const INITIAL_FILTERS = {
   open_only: true,   // hide already-awarded contracts by default
 };
 
+// Sort controls: let users reorder the current page of results by deadline, posted date, or award value.
+// sortBy lives in this hook alongside results so it resets automatically when a new search fires.
 export function useContracts() {
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
+  const [sortBy, setSortBy] = useState("default");
   const limit = 25;
   const abortRef = useRef(null);
 
@@ -33,6 +36,7 @@ export function useContracts() {
 
     setLoading(true);
     setError(null);
+    setSortBy("default");
 
     try {
       const { open_only, ...apiFilters } = activeFilters;
@@ -78,6 +82,34 @@ export function useContracts() {
     search(filters, newPage);
   }, [search, filters]);
 
+  // Derive a sorted copy of the current page's contracts; nulls always sort to the end.
+  // Sort applies only to the fetched page — server owns total count and pagination.
+  const sortedContracts = useMemo(() => {
+    const contracts = results?.contracts;
+    if (!contracts || sortBy === "default") return contracts ?? [];
+    const arr = [...contracts];
+    if (sortBy === "deadline") {
+      arr.sort((a, b) => {
+        if (!a.response_deadline) return 1;
+        if (!b.response_deadline) return -1;
+        return new Date(a.response_deadline) - new Date(b.response_deadline);
+      });
+    } else if (sortBy === "posted") {
+      arr.sort((a, b) => {
+        if (!a.posted_date) return 1;
+        if (!b.posted_date) return -1;
+        return new Date(b.posted_date) - new Date(a.posted_date);
+      });
+    } else if (sortBy === "award") {
+      arr.sort((a, b) => {
+        if (a.award_amount == null) return 1;
+        if (b.award_amount == null) return -1;
+        return b.award_amount - a.award_amount;
+      });
+    }
+    return arr;
+  }, [results?.contracts, sortBy]);
+
   return {
     filters,
     updateFilter,
@@ -89,5 +121,8 @@ export function useContracts() {
     limit,
     search,
     goToPage,
+    sortBy,
+    setSortBy,
+    sortedContracts,
   };
 }

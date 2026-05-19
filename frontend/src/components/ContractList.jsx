@@ -49,7 +49,10 @@ function ErrorState({ message }) {
   );
 }
 
-export default function ContractList({ results, loading, error, page, limit, onPageChange, hasFilters, onOpenContract }) {
+// Sort controls: a "Sort by" select above the results bar lets users reorder the current page without a new fetch.
+// Receives sortBy/setSortBy from useContracts (via SearchPage) and sortedContracts as the pre-sorted array.
+export default function ContractList({ results, loading, error, page, limit, onPageChange, hasFilters, onOpenContract,
+  sortBy, setSortBy, sortedContracts, isBookmarked, onToggleBookmark }) {
   if (loading) {
     return (
       <div className="space-y-4">
@@ -79,13 +82,38 @@ export default function ContractList({ results, loading, error, page, limit, onP
 
   return (
     <div>
-      <p className="text-sm text-gray-500 mb-4">
-        Found <span className="font-semibold text-gray-800">{results.total.toLocaleString()}</span> active contracts
-      </p>
+      <div className="flex items-center justify-between mb-4 gap-4">
+        <p className="text-sm text-gray-500">
+          Found <span className="font-semibold text-gray-800">{results.total.toLocaleString()}</span> active contracts
+        </p>
+        <div className="flex items-center gap-2 shrink-0">
+          <label htmlFor="sort-select" className="text-sm text-gray-500 whitespace-nowrap">Sort by</label>
+          <select
+            id="sort-select"
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            className="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+          >
+            <option value="default">Default order</option>
+            <option value="deadline">Deadline (soonest)</option>
+            <option value="posted">Recently posted</option>
+            <option value="award">Award amount (highest)</option>
+          </select>
+        </div>
+      </div>
+      {sortBy !== "default" && (
+        <p className="text-xs text-gray-400 mb-3 text-right">Sorted within current page</p>
+      )}
 
       <div className="space-y-4">
-        {results.contracts.map(contract => (
-          <ContractCard key={contract.notice_id} contract={contract} onOpen={onOpenContract} />
+        {sortedContracts.map(contract => (
+          <ContractCard
+            key={contract.notice_id}
+            contract={contract}
+            onOpen={onOpenContract}
+            isBookmarked={isBookmarked}
+            onToggleBookmark={onToggleBookmark}
+          />
         ))}
       </div>
 
