@@ -38,14 +38,27 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-05-19] Drawer deferred items — remaining after today's session
+**Type:** Enhancement
+**Priority:** Low — OPEN
+**Tags:** #frontend #ux
+**Detail:** Still outstanding from the original drawer deferred list:
+- Full keyboard focus trap (tab cycling within open drawer)
+- Deep-link via `?notice=` query param for shareable contract URLs
+- Slide-in animation (drawer snaps in, no CSS transition)
+Note: "Save for later" bookmark button (was disabled) is now fully wired up — shipped today.
+
+---
+
 ## [2026-05-16] Reviewing Suggested Enhancements
 **Type:** Enhancement
-**Priority:** High — OPEN
+**Priority:** High — COMPLETE
 **Tags:** #enhancement #api #backend #frontend #deploy #docs
 **Detail:** Next two sessions scoped as follows:
-- **Session A (next):** Contract detail drawer/modal + NAICS code discovery helper
-- **Session B (after):** Deadline urgency indicators + Sort controls
-- **Longer term goal:** Saved searches, bookmark/watch list, contract value filter, email digest, teaming board. Outreach and inclusivity for newcomers is the north star for all decisions on this project.
+- **Session A:** Contract detail drawer/modal + NAICS code discovery helper — DONE
+- **Session B:** Deadline urgency indicators + Sort controls + Bookmark/watch list — DONE (2026-05-19)
+- **Longer term goal:** Saved searches, contract value filter, email digest, teaming board. Outreach and inclusivity for newcomers is the north star for all decisions on this project.
+**Resolution:** All Session A and B items shipped. Bookmark watch list added ahead of schedule. Commit `432bf71`.
 
 ---
 
@@ -60,13 +73,13 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ## [2026-05-17] Contract detail drawer — deferred items
 **Type:** Enhancement
-**Priority:** Low — OPEN
+**Priority:** Low — PARTIAL
 **Tags:** #frontend #ux
 **Detail:** Items intentionally deferred from the Session A drawer implementation:
-- Full keyboard focus trap (tab cycling within open drawer)
-- Deep-link via `?notice=` query param for shareable contract URLs
-- Slide-in animation (currently snaps in, no transition)
-- Save for later / bookmark functionality (button is present but disabled)
+- Full keyboard focus trap (tab cycling within open drawer) — still open
+- Deep-link via `?notice=` query param for shareable contract URLs — still open
+- Slide-in animation (currently snaps in, no transition) — still open
+- Save for later / bookmark functionality — SHIPPED 2026-05-19 (commit `432bf71`)
 
 ---
 
