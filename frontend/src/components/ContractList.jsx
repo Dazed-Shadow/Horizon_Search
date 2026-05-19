@@ -17,6 +17,25 @@ function EmptyState({ hasFilters }) {
   );
 }
 
+function RateLimitState() {
+  return (
+    <div className="text-center py-16">
+      <svg className="w-14 h-14 mx-auto mb-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <p className="text-lg font-semibold text-amber-600">Search limit reached</p>
+      <p className="text-sm text-gray-500 mt-2 max-w-sm mx-auto">
+        The SAM.gov free API allows a limited number of searches per day.
+        Wait a few minutes and try again — your results will be back shortly.
+      </p>
+      <p className="text-xs text-gray-400 mt-3">
+        Tip: repeated searches for the same filters are cached and won't use your quota.
+      </p>
+    </div>
+  );
+}
+
 function ErrorState({ message }) {
   return (
     <div className="text-center py-16">
@@ -30,7 +49,10 @@ function ErrorState({ message }) {
   );
 }
 
-export default function ContractList({ results, loading, error, page, limit, onPageChange, hasFilters }) {
+// Sort controls: a "Sort by" select above the results bar lets users reorder the current page without a new fetch.
+// Receives sortBy/setSortBy from useContracts (via SearchPage) and sortedContracts as the pre-sorted array.
+export default function ContractList({ results, loading, error, page, limit, onPageChange, hasFilters, onOpenContract,
+  sortBy, setSortBy, sortedContracts, isBookmarked, onToggleBookmark }) {
   if (loading) {
     return (
       <div className="space-y-4">
@@ -53,19 +75,45 @@ export default function ContractList({ results, loading, error, page, limit, onP
     );
   }
 
+  if (error === "__RATE_LIMIT__") return <RateLimitState />;
   if (error) return <ErrorState message={error} />;
   if (!results) return <EmptyState hasFilters={false} />;
   if (results.contracts.length === 0) return <EmptyState hasFilters={hasFilters} />;
 
   return (
     <div>
-      <p className="text-sm text-gray-500 mb-4">
-        Found <span className="font-semibold text-gray-800">{results.total.toLocaleString()}</span> active contracts
-      </p>
+      <div className="flex items-center justify-between mb-4 gap-4">
+        <p className="text-sm text-gray-500">
+          Found <span className="font-semibold text-gray-800">{results.total.toLocaleString()}</span> active contracts
+        </p>
+        <div className="flex items-center gap-2 shrink-0">
+          <label htmlFor="sort-select" className="text-sm text-gray-500 whitespace-nowrap">Sort by</label>
+          <select
+            id="sort-select"
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            className="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+          >
+            <option value="default">Default order</option>
+            <option value="deadline">Deadline (soonest)</option>
+            <option value="posted">Recently posted</option>
+            <option value="award">Award amount (highest)</option>
+          </select>
+        </div>
+      </div>
+      {sortBy !== "default" && (
+        <p className="text-xs text-gray-400 mb-3 text-right">Sorted within current page</p>
+      )}
 
       <div className="space-y-4">
-        {results.contracts.map(contract => (
-          <ContractCard key={contract.notice_id} contract={contract} />
+        {sortedContracts.map(contract => (
+          <ContractCard
+            key={contract.notice_id}
+            contract={contract}
+            onOpen={onOpenContract}
+            isBookmarked={isBookmarked}
+            onToggleBookmark={onToggleBookmark}
+          />
         ))}
       </div>
 

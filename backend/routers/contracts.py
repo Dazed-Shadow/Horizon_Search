@@ -1,5 +1,9 @@
+import logging
+import httpx
 from fastapi import APIRouter, Query, HTTPException
 from typing import Optional
+
+log = logging.getLogger(__name__)
 
 from services.sam_gov import search_contracts, SET_ASIDE_LABELS, SOLICITATION_TYPE_LABELS
 from models.contract import ContractSearchResult
@@ -19,6 +23,7 @@ async def search(
     response_deadline_from: Optional[str] = Query(default=None, description="Response deadline from MM/DD/YYYY"),
     response_deadline_to: Optional[str] = Query(default=None, description="Response deadline to MM/DD/YYYY"),
     state: Optional[str] = Query(default=None, description="Place of performance state code (e.g. TX, CA)"),
+    open_only: bool = Query(default=True, description="Exclude award notices and justifications"),
     limit: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ):
@@ -34,10 +39,22 @@ async def search(
             response_deadline_from=response_deadline_from,
             response_deadline_to=response_deadline_to,
             state=state,
+            open_only=open_only,
             limit=limit,
             offset=offset,
         )
+    except HTTPException:
+        raise
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 429:
+            raise HTTPException(
+                status_code=429,
+                detail="SAM.gov daily search limit reached. Please wait a few minutes and try again.",
+            )
+        log.error("SAM.gov HTTP error %s", exc.response.status_code)
+        raise HTTPException(status_code=502, detail=f"SAM.gov returned {exc.response.status_code}")
     except Exception as exc:
+        log.exception("Search failed")
         raise HTTPException(status_code=502, detail=f"SAM.gov API error: {str(exc)}")
 
 

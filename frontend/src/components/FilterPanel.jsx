@@ -36,6 +36,26 @@ export default function FilterPanel({ filters, onUpdate, onSearch, onReset }) {
         </button>
       </div>
 
+      {/* Open solicitations toggle */}
+      <div className="flex items-center justify-between py-2 border-b border-gray-100">
+        <div>
+          <p className="text-sm font-semibold text-gray-700">Open solicitations only</p>
+          <p className="text-xs text-gray-400">Hide already-awarded contracts</p>
+        </div>
+        <button
+          role="switch"
+          aria-checked={filters.open_only !== false}
+          onClick={() => onUpdate("open_only", filters.open_only === false ? true : false)}
+          className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+            filters.open_only !== false ? "bg-brand-600" : "bg-gray-200"
+          }`}
+        >
+          <span className={`inline-block h-4 w-4 mt-0.5 rounded-full bg-white shadow transition-transform ${
+            filters.open_only !== false ? "translate-x-4" : "translate-x-0.5"
+          }`} />
+        </button>
+      </div>
+
       <FilterSection title="Veteran & Small Business Set-Aside">
         <select
           className="filter-input"

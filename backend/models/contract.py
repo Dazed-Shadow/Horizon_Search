@@ -1,18 +1,18 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 
 
 class ContractSearchParams(BaseModel):
     keyword: str = ""
-    set_aside: Optional[str] = None        # e.g. "SDVOSBC", "8AN", "SBA"
+    set_aside: Optional[str] = None
     naics_code: Optional[str] = None
     agency: Optional[str] = None
-    solicitation_type: Optional[str] = None  # o=solicitation, p=presolicitation, r=sources sought
-    posted_from: Optional[str] = None       # MM/DD/YYYY
+    solicitation_type: Optional[str] = None
+    posted_from: Optional[str] = None
     posted_to: Optional[str] = None
     response_deadline_from: Optional[str] = None
     response_deadline_to: Optional[str] = None
-    state: Optional[str] = None            # place of performance state
+    state: Optional[str] = None
     limit: int = 25
     offset: int = 0
 
@@ -24,8 +24,8 @@ class ContactInfo(BaseModel):
 
 
 class Contract(BaseModel):
-    notice_id: str
-    title: str
+    notice_id: str = ""
+    title: str = "Untitled"
     solicitation_number: Optional[str] = None
     agency: Optional[str] = None
     sub_agency: Optional[str] = None
@@ -47,7 +47,15 @@ class Contract(BaseModel):
 
 
 class ContractSearchResult(BaseModel):
-    total: int
-    limit: int
-    offset: int
-    contracts: list[Contract]
+    total: int = 0
+    limit: int = 25
+    offset: int = 0
+    contracts: list[Contract] = []
+
+    @field_validator("total", mode="before")
+    @classmethod
+    def coerce_total(cls, v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return 0
