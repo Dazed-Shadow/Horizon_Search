@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { COMMON_NAICS } from "../utils/constants";
 
 const STEPS = [
   {
@@ -218,6 +219,155 @@ function StepCard({ step, index }) {
   );
 }
 
+// Group NAICS codes by category for the discovery section
+function useNaicsGroups(filter) {
+  return useMemo(() => {
+    const filtered = filter.trim()
+      ? COMMON_NAICS.filter(n =>
+          n.code.includes(filter) ||
+          n.label.toLowerCase().includes(filter.toLowerCase()) ||
+          n.category.toLowerCase().includes(filter.toLowerCase())
+        )
+      : COMMON_NAICS;
+
+    return filtered.reduce((acc, n) => {
+      (acc[n.category] = acc[n.category] || []).push(n);
+      return acc;
+    }, {});
+  }, [filter]);
+}
+
+function NaicsSection() {
+  const [filter, setFilter] = useState("");
+  const [openGroups, setOpenGroups] = useState({});
+  const groups = useNaicsGroups(filter);
+  const categories = Object.keys(groups);
+  const isFiltering = filter.trim().length > 0;
+
+  function toggleGroup(cat) {
+    setOpenGroups(prev => ({ ...prev, [cat]: !prev[cat] }));
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="bg-indigo-600 px-6 py-5">
+        <div className="flex items-start gap-4">
+          <div className="shrink-0 bg-white/20 rounded-xl p-2.5 text-white">
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-300 mb-0.5">Reference</p>
+            <h2 className="text-lg font-bold text-white">NAICS Code Directory</h2>
+            <p className="text-white/80 text-sm mt-0.5">
+              Find the 6-digit industry code that describes your business — you'll add it to your SAM.gov profile.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-6 py-5 space-y-4">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-sm">
+          <p className="font-semibold text-indigo-800 mb-0.5">Why NAICS codes matter</p>
+          <p className="text-indigo-700 leading-relaxed">
+            Every federal contract lists a NAICS code for the type of work required. To bid on a contract,
+            your SAM.gov profile must include that NAICS code. You can add as many codes as apply to your
+            business — there's no limit, and you can update them at any time.
+          </p>
+        </div>
+
+        {/* Search filter */}
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by code, keyword, or industry..."
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg
+                       focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          />
+          {filter && (
+            <button onClick={() => setFilter("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              ✕
+            </button>
+          )}
+        </div>
+
+        {categories.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-6">No codes match "{filter}"</p>
+        )}
+
+        {/* Category accordion */}
+        <div className="space-y-2">
+          {categories.map(cat => {
+            const isOpen = isFiltering || openGroups[cat];
+            return (
+              <div key={cat} className="border border-gray-100 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(cat)}
+                  className="w-full text-left px-4 py-3 flex items-center justify-between gap-3
+                             hover:bg-gray-50 transition"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm text-gray-800">{cat}</span>
+                    <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
+                      {groups[cat].length} codes
+                    </span>
+                  </div>
+                  <span className="text-gray-400 text-xs shrink-0">{isOpen ? "▲" : "▼"}</span>
+                </button>
+
+                {isOpen && (
+                  <div className="border-t border-gray-100 divide-y divide-gray-50">
+                    {groups[cat].map(n => (
+                      <div key={n.code}
+                        className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-gray-50 transition">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="font-mono text-xs font-bold text-indigo-700 shrink-0 bg-indigo-50
+                                          px-2 py-0.5 rounded">
+                            {n.code}
+                          </span>
+                          <span className="text-sm text-gray-700 leading-snug">{n.label}</span>
+                        </div>
+                        <a
+                          href={`https://www.naics.com/naics-code-description/?code=${n.code}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
+                        >
+                          Details ↗
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="text-xs text-gray-400 text-center pt-1">
+          Don't see your industry?{" "}
+          <a href="https://www.naics.com/search/" target="_blank" rel="noopener noreferrer"
+            className="text-indigo-600 hover:underline font-medium">
+            Search all NAICS codes ↗
+          </a>
+        </p>
+      </div>
+    </section>
+  );
+}
+
 export default function StartHerePage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -235,6 +385,54 @@ export default function StartHerePage() {
           The federal government is legally required to award a portion of its contracts to veteran-owned businesses.
           These four steps are all you need to get your first one.
         </p>
+      </div>
+
+      {/* ── Before You Begin: EIN ──────────────────────────────────────── */}
+      <div className="mb-8 bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
+        <div className="bg-amber-500 px-6 py-4 flex items-center gap-3">
+          <div className="shrink-0 bg-white/20 rounded-lg p-2 text-white">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-100">Before You Begin</p>
+            <p className="font-bold text-white">Get your EIN — Employer Identification Number</p>
+          </div>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-gray-700 leading-relaxed">
+            An EIN is your business's federal tax ID — like a Social Security Number, but for your company.
+            SAM.gov will ask for it during registration, so apply first. The IRS issues EINs instantly online, for free.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {[
+              { label: "Who needs one", body: "Any business entity: LLC, S-Corp, C-Corp, Partnership, or Sole Proprietorship with employees. Even a single-member LLC benefits from having one." },
+              { label: "What you need to apply", body: "Your SSN (as the responsible party), your business's legal name and address, and your entity type. Takes under 5 minutes online." },
+              { label: "How to apply", body: "Go directly to IRS.gov — it's free and instant. Avoid third-party sites that charge $50–$300 for the same service." },
+              { label: "After you have it", body: "Save your EIN confirmation letter. You'll need the number for SAM.gov registration, business banking, and tax filings." },
+            ].map(item => (
+              <div key={item.label} className="bg-white border border-amber-100 rounded-xl px-4 py-3">
+                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">{item.label}</p>
+                <p className="text-sm text-gray-600 leading-relaxed">{item.body}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-3 pt-1">
+            <a href="https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online"
+              target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white
+                         font-bold text-sm px-4 py-2 rounded-lg transition">
+              Apply for EIN on IRS.gov ↗
+            </a>
+            <a href="https://www.irs.gov/businesses/small-businesses-self-employed/employer-id-numbers"
+              target="_blank" rel="noopener noreferrer"
+              className="text-sm font-semibold text-amber-700 hover:underline self-center">
+              IRS EIN overview ↗
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Step progress strip */}
@@ -255,8 +453,13 @@ export default function StartHerePage() {
         {STEPS.map((step, i) => <StepCard key={step.number} step={step} index={i} />)}
       </div>
 
+      {/* ── NAICS Code Directory ───────────────────────────────────────── */}
+      <div className="mt-8">
+        <NaicsSection />
+      </div>
+
       {/* Bottom CTA */}
-      <div className="mt-10 bg-brand-900 rounded-2xl p-8 text-center text-white">
+      <div className="mt-8 bg-brand-900 rounded-2xl p-8 text-center text-white">
         <h2 className="text-xl font-bold mb-2">Ready to find your first contract?</h2>
         <p className="text-brand-200 text-sm mb-5">
           Horizon Search shows you active opportunities filtered to your set-aside type — with plain-English explanations on every card.
