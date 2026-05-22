@@ -60,6 +60,30 @@ export default function SearchPage() {
       .catch(() => {});
   }, []);
 
+  // Deep-link: on page load, if ?notice=<id> is in the URL fetch and open that contract.
+  useEffect(() => {
+    const noticeId = new URLSearchParams(window.location.search).get("notice");
+    if (!noticeId) return;
+    fetch(`/api/contracts/${encodeURIComponent(noticeId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setSelectedContract(data); })
+      .catch(() => {});
+  }, []);
+
+  function openContract(contract) {
+    setSelectedContract(contract);
+    const url = new URL(window.location);
+    url.searchParams.set("notice", contract.notice_id);
+    window.history.pushState({}, "", url);
+  }
+
+  function closeDrawer() {
+    setSelectedContract(null);
+    const url = new URL(window.location);
+    url.searchParams.delete("notice");
+    window.history.pushState({}, "", url);
+  }
+
   const hasActiveFilters = Object.entries(filters).some(([k, v]) => k !== "keyword" && v !== "");
 
   function applyQuickFilter(qf) {
@@ -83,14 +107,14 @@ export default function SearchPage() {
 
   function openContractFromBookmarks(contract) {
     setBookmarksPanelOpen(false);
-    setSelectedContract(contract);
+    openContract(contract);
   }
 
   return (
     <>
       <ContractDetailDrawer
         contract={selectedContract}
-        onClose={() => setSelectedContract(null)}
+        onClose={closeDrawer}
         isBookmarked={isBookmarked}
         onToggleBookmark={toggleBookmark}
       />
@@ -193,7 +217,7 @@ export default function SearchPage() {
               limit={limit}
               onPageChange={goToPage}
               hasFilters={hasActiveFilters || filters.keyword !== ""}
-              onOpenContract={setSelectedContract}
+              onOpenContract={openContract}
               sortBy={sortBy}
               setSortBy={setSortBy}
               sortedContracts={sortedContracts}

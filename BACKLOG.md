@@ -38,15 +38,17 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
-## [2026-05-19] Drawer deferred items — remaining after today's session
-**Type:** Enhancement
-**Priority:** Low — OPEN
-**Tags:** #frontend #ux
-**Detail:** Still outstanding from the original drawer deferred list:
-- Full keyboard focus trap (tab cycling within open drawer)
-- Deep-link via `?notice=` query param for shareable contract URLs
-- Slide-in animation (drawer snaps in, no CSS transition)
-Note: "Save for later" bookmark button (was disabled) is now fully wired up — shipped today.
+## [2026-05-22] Opus recommendations — pre-distribution outreach & visual uplift
+**Type:** Feature
+**Priority:** High — OPEN
+**Tags:** #frontend #ux #outreach
+**Detail:** Opus reviewed the current state and recommended the following (ordered by impact/scope):
+1. **Plain-language contract translator** (small) — "What does this mean?" toggle on each card; translate NAICS, set-aside codes, solicitation types into plain English inline. Highest newcomer signal.
+2. **Testimonials + Share button** (small) — rotating veteran quotes in hero + Web Share API button; the viral multiplier before distribution.
+3. **Mission hero with live stats ticker** (medium) — hero section above search with real SDVOSB opportunity count pulled from SAM.gov API; cached 1hr. Gives the site soul.
+4. **"Start Here" guided onboarding** (medium) — 3-step visual journey (Register → Certify → Search → Win) as a dedicated page, linked prominently in nav. Reuses existing Licensing + Primer pages.
+5. **Match Score personalization** (medium-large) — 60-second localStorage profile wizard + match score badge on cards. Post-distribution week 1.
+North star: every feature reduces friction for a newcomer. Ship #1 and #2 before Monday; #3 and #4 same weekend; #5 week of distribution.
 
 ---
 
@@ -73,12 +75,12 @@ Note: "Save for later" bookmark button (was disabled) is now fully wired up — 
 
 ## [2026-05-17] Contract detail drawer — deferred items
 **Type:** Enhancement
-**Priority:** Low — PARTIAL
+**Priority:** Low — COMPLETE
 **Tags:** #frontend #ux
 **Detail:** Items intentionally deferred from the Session A drawer implementation:
-- Full keyboard focus trap (tab cycling within open drawer) — still open
-- Deep-link via `?notice=` query param for shareable contract URLs — still open
-- Slide-in animation (currently snaps in, no transition) — still open
+- Full keyboard focus trap (tab cycling within open drawer) — SHIPPED 2026-05-22
+- Deep-link via `?notice=` query param for shareable contract URLs — SHIPPED 2026-05-22
+- Slide-in animation (drawer snaps in, no transition) — SHIPPED 2026-05-22
 - Save for later / bookmark functionality — SHIPPED 2026-05-19 (commit `432bf71`)
 
 ---

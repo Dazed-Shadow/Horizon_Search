@@ -222,3 +222,26 @@ async def search_contracts(
     )
     _cache_set(key, result)
     return result
+
+
+async def get_contract_by_notice_id(notice_id: str) -> Optional[Contract]:
+    """Fetch a single contract by its SAM.gov notice ID for deep-link support."""
+    api_key = os.getenv("SAM_GOV_API_KEY", "")
+    fmt = "%m/%d/%Y"
+    # SAM.gov still requires a date range even when searching by noticeId
+    params = {
+        "api_key": api_key,
+        "noticeid": notice_id,
+        "limit": 1,
+        "offset": 0,
+        "postedFrom": (datetime.utcnow() - timedelta(days=365)).strftime(fmt),
+        "postedTo": datetime.utcnow().strftime(fmt),
+    }
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get(SAM_BASE, params=params)
+        response.raise_for_status()
+        data = response.json()
+    opportunities = data.get("opportunitiesData", []) or []
+    if not opportunities:
+        return None
+    return _parse_opportunity(opportunities[0])

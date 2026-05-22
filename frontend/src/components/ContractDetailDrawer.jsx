@@ -50,19 +50,40 @@ function ExplainerCard({ heading, title, summary, eligibilityLabel, eligibility,
   );
 }
 
-// Bookmark / watch list: drawer footer "Save for later" wires to the same useBookmarks toggle as the card icon.
-// Receives isBookmarked bool-returning fn and onToggleBookmark callback from SearchPage.
+// Drawer polish: slide-in animation via CSS keyframe, full keyboard focus trap (Tab/Shift+Tab cycles
+// within the panel), and Esc-to-close all coexist in a single keydown handler.
 export default function ContractDetailDrawer({ contract, onClose, isBookmarked, onToggleBookmark }) {
   const closeButtonRef = useRef(null);
+  const panelRef = useRef(null);
   const bodyRef = useRef(null);
   const [copied, setCopied] = useState(false);
 
-  // Esc to close + body scroll lock
+  const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
   useEffect(() => {
     if (!contract) return;
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
+
+    const onKey = (e) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+
+      // Focus trap: cycle within the drawer panel
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusable = [...panel.querySelectorAll(FOCUSABLE)];
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+
+    document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
@@ -108,18 +129,19 @@ export default function ContractDetailDrawer({ contract, onClose, isBookmarked, 
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 z-40"
+        className="fixed inset-0 bg-black/40 z-40 backdrop-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Drawer panel */}
+      {/* Drawer panel — slide-in-right animation on every open */}
       <aside
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="drawer-title"
         className="fixed top-0 right-0 h-full w-full md:w-[clamp(380px,42vw,560px)]
-                   bg-white shadow-2xl z-50 flex flex-col"
+                   bg-white shadow-2xl z-50 flex flex-col drawer-slide-in"
       >
         {/* ── Sticky header ─────────────────────────────────────────── */}
         <header className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
