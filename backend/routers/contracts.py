@@ -5,7 +5,7 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
-from services.sam_gov import search_contracts, get_contract_by_notice_id, SET_ASIDE_LABELS, SOLICITATION_TYPE_LABELS
+from services.sam_gov import search_contracts, get_contract_by_notice_id, get_opportunity_stats, SET_ASIDE_LABELS, SOLICITATION_TYPE_LABELS
 from models.contract import Contract, ContractSearchResult
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
@@ -56,6 +56,16 @@ async def search(
     except Exception as exc:
         log.exception("Search failed")
         raise HTTPException(status_code=502, detail=f"SAM.gov API error: {str(exc)}")
+
+
+@router.get("/stats")
+async def opportunity_stats():
+    """Live opportunity counts by veteran set-aside — cached 1hr, used by the hero ticker."""
+    try:
+        return await get_opportunity_stats()
+    except Exception as exc:
+        log.exception("Stats fetch failed")
+        raise HTTPException(status_code=502, detail=str(exc))
 
 
 @router.get("/filters/set-asides")

@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import httpx
 import os
@@ -222,6 +223,47 @@ async def search_contracts(
     )
     _cache_set(key, result)
     return result
+
+
+_STATS_CACHE: dict = {}
+_STATS_TTL = 3600  # 1 hour — stats are display-only, stale by a few hours is fine
+
+async def _count_by_set_aside(set_aside: str, api_key: str, client: httpx.AsyncClient) -> int:
+    fmt = "%m/%d/%Y"
+    params = {
+        "api_key": api_key,
+        "typeOfSetAside": set_aside,
+        "limit": 1,
+        "offset": 0,
+        "postedFrom": (datetime.utcnow() - timedelta(days=90)).strftime(fmt),
+        "postedTo": datetime.utcnow().strftime(fmt),
+    }
+    try:
+        r = await client.get(SAM_BASE, params=params)
+        r.raise_for_status()
+        total = r.json().get("totalRecords", 0)
+        return int(total) if total else 0
+    except Exception:
+        return 0
+
+
+async def get_opportunity_stats() -> dict:
+    """Return live opportunity counts by veteran set-aside type, cached for 1 hour."""
+    cached = _STATS_CACHE.get("stats")
+    if cached and (time.monotonic() - cached["ts"]) < _STATS_TTL:
+        return cached["data"]
+
+    api_key = os.getenv("SAM_GOV_API_KEY", "")
+    async with httpx.AsyncClient(timeout=20) as client:
+        sdvosb, vosb, sba = await asyncio.gather(
+            _count_by_set_aside("SDVOSBC", api_key, client),
+            _count_by_set_aside("VOSB", api_key, client),
+            _count_by_set_aside("SBA", api_key, client),
+        )
+
+    data = {"sdvosb": sdvosb, "vosb": vosb, "sba": sba, "veteran": sdvosb + vosb}
+    _STATS_CACHE["stats"] = {"data": data, "ts": time.monotonic()}
+    return data
 
 
 async def get_contract_by_notice_id(notice_id: str) -> Optional[Contract]:

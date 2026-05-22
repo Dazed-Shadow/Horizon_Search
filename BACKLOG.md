@@ -38,6 +38,17 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-05-22] Brand identity — logo + company name
+**Type:** Feature
+**Priority:** Medium — OPEN
+**Tags:** #frontend #ux #docs
+**Detail:** Two related items tracked together:
+- **Logo**: A proper mark for Horizon Search to replace the current SVG placeholder in the Mission page About section and the Navbar icon. Consider a horizon line / star / compass motif that resonates with a veteran audience. Placeholder is in `MissionPage.jsx` (the 80×80 brand-900 square) and `Navbar.jsx` (the scales SVG).
+- **Business/company name**: The site owner intends to walk through the same SAM.gov registration process featured on the Start Here page — registering their own veteran LLC. The company name will feed into the founderNote in `frontend/src/data/testimonials.js` (`name` and `role` fields) and the About section of the Mission page. Until then, "Horizon Search" is the working name.
+- **Next steps**: Once business name is decided, update `testimonials.js` founderNote, Mission page About section, and footer in `App.jsx`.
+
+---
+
 ## [2026-05-22] Opus recommendations — pre-distribution outreach & visual uplift
 **Type:** Feature
 **Priority:** High — IN PROGRESS
@@ -45,8 +56,9 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 **Detail:** Opus reviewed the current state and recommended the following (ordered as revised with user input):
 1. **Plain-language contract translator** — SHIPPED 2026-05-22. "What does this mean?" toggle on cards.
 2. **"Start Here" guided onboarding** — SHIPPED 2026-05-22. Bumped up by user. 4-step journey page at /start with expandable FAQs, action checklists, green nav CTA.
-3. **Testimonials + Share button** — OPEN. Rotating veteran quotes + Web Share API. Ship next.
-4. **Mission hero with live stats ticker** — OPEN. Live SDVOSB count above search bar; needs `/api/contracts/stats` endpoint.
+3. **Testimonials + Share button** — SHIPPED 2026-05-22. Mission page has full testimonial cards; ShareButton on search hero.
+4. **Mission hero with live stats ticker** — SHIPPED 2026-05-22. `/api/contracts/stats` endpoint (1hr cache); SDVOSB/VOSB/SBA counts in search hero.
+5. **Mission page** — SHIPPED 2026-05-22 (added by user). `/mission` — hero, values, about section, full testimonial cards, CTAs.
 5. **Match Score personalization** — OPEN. Post-distribution week 1.
 
 ---

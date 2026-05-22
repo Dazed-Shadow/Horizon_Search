@@ -4,10 +4,10 @@ import FilterPanel from "../components/FilterPanel";
 import ContractList from "../components/ContractList";
 import ContractDetailDrawer from "../components/ContractDetailDrawer";
 import BookmarksPanel from "../components/BookmarksPanel";
-import TestimonialStrip from "../components/TestimonialStrip";
 import ShareButton from "../components/ShareButton";
 import { useContracts } from "../hooks/useContracts";
 import { useBookmarks } from "../hooks/useBookmarks";
+import { useOpportunityStats } from "../hooks/useOpportunityStats";
 
 const QUICK_FILTERS = [
   { label: "All SDVOSB",       set_aside: "SDVOSBC" },
@@ -46,10 +46,22 @@ function ApiKeyBanner({ onDismiss }) {
   );
 }
 
+function StatPill({ label, value, color }) {
+  return (
+    <span className="flex items-center gap-1.5 text-xs">
+      <span className={`font-bold text-sm ${color}`}>
+        {value > 0 ? value.toLocaleString() : "—"}
+      </span>
+      <span className="text-brand-200">{label}</span>
+    </span>
+  );
+}
+
 export default function SearchPage() {
   const { filters, updateFilter, resetFilters, results, loading, error, page, limit, search, goToPage,
     sortBy, setSortBy, sortedContracts } = useContracts();
   const { bookmarks, isBookmarked, toggleBookmark, removeBookmark, count: bookmarkCount } = useBookmarks();
+  const { stats } = useOpportunityStats();
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
@@ -133,9 +145,18 @@ export default function SearchPage() {
       {/* Hero search bar */}
       <div className="bg-gradient-to-b from-brand-900 to-brand-700 pb-8 pt-4 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-brand-100 text-sm mb-4">
-            Search active federal contracts across SAM.gov — filtered for veteran-owned business set-asides.
-          </p>
+          {/* Live stats ticker */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-4">
+            {stats ? (
+              <>
+                <StatPill label="SDVOSB opportunities" value={stats.sdvosb} color="text-green-300" />
+                <StatPill label="VOSB opportunities"   value={stats.vosb}   color="text-green-300" />
+                <StatPill label="Small Business open"  value={stats.sba}    color="text-blue-300"  />
+              </>
+            ) : (
+              <p className="text-brand-300 text-xs animate-pulse">Loading live opportunity counts…</p>
+            )}
+          </div>
           <SearchBar
             value={filters.keyword}
             onChange={v => updateFilter("keyword", v)}
@@ -173,8 +194,6 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
-
-      <TestimonialStrip />
 
       {/* Main layout */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
