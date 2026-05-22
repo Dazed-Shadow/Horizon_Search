@@ -6,6 +6,7 @@ import LicensingPage from "./pages/LicensingPage";
 import ContractPrimerPage from "./pages/ContractPrimerPage";
 import StartHerePage from "./pages/StartHerePage";
 import MissionPage from "./pages/MissionPage";
+import TrailblazersPage from "./pages/TrailblazersPage";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/" element={<SearchPage />} />
         <Route path="/start" element={<StartHerePage />} />
         <Route path="/mission" element={<MissionPage />} />
+        <Route path="/trailblazers" element={<TrailblazersPage />} />
         <Route path="/licensing" element={<LicensingPage />} />
         <Route path="/primer" element={<ContractPrimerPage />} />
       </Routes>

@@ -60,6 +60,18 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 4. **Mission hero with live stats ticker** — SHIPPED 2026-05-22. `/api/contracts/stats` endpoint (1hr cache); SDVOSB/VOSB/SBA counts in search hero.
 5. **Mission page** — SHIPPED 2026-05-22 (added by user). `/mission` — hero, values, about section, full testimonial cards, CTAs.
 5. **Match Score personalization** — OPEN. Post-distribution week 1.
+6. **Trailblazers page** — SHIPPED 2026-05-22. `/trailblazers` — 5 anchor figures, slide-in drawer, articles list.
+
+## [2026-05-22] Trailblazers content — articles URL verification
+**Type:** Enhancement
+**Priority:** Medium — OPEN
+**Tags:** #frontend #docs #outreach
+**Detail:** Articles in `frontend/src/data/articles.json` marked `verify:true` need real direct URLs
+before wide distribution. Check each source and replace the placeholder homepage URL with the
+specific article URL. Also: as the owner finds real SBA veteran success stories that fit the
+"Founder Profiles" and "Funding & Contracts" buckets, add them to the articles array.
+Sources to check: Inc. Vet 100, Forbes veteran founders, HBR military leadership, Task & Purpose
+SDVOSB coverage, We Are The Mighty / Adam Driver AITAF, Military Times / Mark Geist.
 
 ---
 

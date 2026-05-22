@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 
 const NAV_LINKS = [
-  { to: "/",          label: "Search Contracts" },
-  { to: "/mission",   label: "Mission" },
-  { to: "/licensing", label: "Licensing & Certs" },
-  { to: "/primer",    label: "How to Win" },
+  { to: "/",              label: "Search Contracts" },
+  { to: "/mission",       label: "Mission" },
+  { to: "/trailblazers",  label: "Trailblazers" },
+  { to: "/licensing",     label: "Licensing & Certs" },
+  { to: "/primer",        label: "How to Win" },
 ];
 
 // "Start Here" is visually separate — a green CTA pill for newcomers who don't know where to begin.
