@@ -49,9 +49,18 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-05-22] Notion logging — catch-up sync script
+**Type:** Enhancement
+**Priority:** High — COMPLETE
+**Tags:** #docs
+**Detail:** Notion was never seeded because `NOTION_API_KEY` and `NOTION_ROOT_PAGE_ID` were missing from `backend/.env`. `notion_sync.py` written as a comprehensive, idempotent catch-up script covering all 6 databases: Decisions (10), Backlog (18), Session Log, Reference (10 links), Changes (11 commits), Test Scenarios (33 tests).
+**Resolution:** `scripts/notion_sync.py` committed. JR must add `NOTION_API_KEY` and `NOTION_ROOT_PAGE_ID` to `backend/.env`, then run `python scripts/notion_sync.py` from the repo root. Script is idempotent — safe to re-run; skips existing titles.
+
+---
+
 ## [2026-05-22] Opus recommendations — pre-distribution outreach & visual uplift
 **Type:** Feature
-**Priority:** High — IN PROGRESS
+**Priority:** High — COMPLETE
 **Tags:** #frontend #ux #outreach
 **Detail:** Opus reviewed the current state and recommended the following (ordered as revised with user input):
 1. **Plain-language contract translator** — SHIPPED 2026-05-22. "What does this mean?" toggle on cards.
