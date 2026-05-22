@@ -4,6 +4,8 @@ import FilterPanel from "../components/FilterPanel";
 import ContractList from "../components/ContractList";
 import ContractDetailDrawer from "../components/ContractDetailDrawer";
 import BookmarksPanel from "../components/BookmarksPanel";
+import TestimonialStrip from "../components/TestimonialStrip";
+import ShareButton from "../components/ShareButton";
 import { useContracts } from "../hooks/useContracts";
 import { useBookmarks } from "../hooks/useBookmarks";
 
@@ -155,19 +157,24 @@ export default function SearchPage() {
                 {qf.label}
               </button>
             ))}
-            <button
-              onClick={openBookmarksPanel}
-              className={`ml-auto text-xs px-3 py-1.5 rounded-full font-medium transition border ${
-                bookmarkCount > 0
-                  ? "bg-amber-400/20 text-amber-200 border-amber-400/40 hover:bg-amber-400/30"
-                  : "bg-white/10 text-white/60 border-white/20 hover:bg-white/20"
-              }`}
-            >
-              {bookmarkCount > 0 ? `Saved (${bookmarkCount})` : "Saved"}
-            </button>
+            <div className="flex items-center gap-2 ml-auto">
+              <ShareButton />
+              <button
+                onClick={openBookmarksPanel}
+                className={`text-xs px-3 py-1.5 rounded-full font-medium transition border ${
+                  bookmarkCount > 0
+                    ? "bg-amber-400/20 text-amber-200 border-amber-400/40 hover:bg-amber-400/30"
+                    : "bg-white/10 text-white/60 border-white/20 hover:bg-white/20"
+                }`}
+              >
+                {bookmarkCount > 0 ? `Saved (${bookmarkCount})` : "Saved"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      <TestimonialStrip />
 
       {/* Main layout */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
