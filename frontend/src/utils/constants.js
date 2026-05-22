@@ -99,3 +99,32 @@ export const SET_ASIDE_COLORS = {
 };
 
 export const VETERAN_CODES = new Set(["SDVOSBC", "SDVOSBS", "VSB", "VOSB"]);
+
+// Plain-language explanations for newcomers — shown via the "What does this mean?" toggle on each card.
+export const SET_ASIDE_PLAIN = {
+  SDVOSBC:  { who: "Service-Disabled Veteran-Owned Small Business (SDVOSB)", plain: "Only SDVOSBs compete for this contract. You must be VA-verified as a SDVOSB to submit a bid.", canBid: true },
+  SDVOSBS:  { who: "Service-Disabled Veteran-Owned Small Business (SDVOSB)", plain: "The agency selected one SDVOSB directly — no open competition. This is a sole-source award.", canBid: false },
+  VOSB:     { who: "Veteran-Owned Small Business (VOSB)", plain: "Only VA-verified VOSBs can bid. You must hold an active VOSB certification through the VA's VetCert program.", canBid: true },
+  VSB:      { who: "Veteran-Owned Small Business (VOSB)", plain: "Only VA-verified VOSBs can bid. You must hold an active VOSB certification through the VA's VetCert program.", canBid: true },
+  "8AN":    { who: "SBA 8(a) Certified Small Business", plain: "Open competition, but only businesses enrolled in the SBA's 8(a) Business Development Program can bid.", canBid: true },
+  "8A":     { who: "SBA 8(a) Certified Small Business", plain: "The agency selected a specific 8(a) firm directly. No open competition — sole-source award.", canBid: false },
+  SBA:      { who: "Small Business (any)", plain: "Open to any small business that meets SBA's size standards for this industry (NAICS code). No veteran certification required.", canBid: true },
+  SBP:      { who: "Small Business (partial set-aside)", plain: "Part of this contract is reserved for small businesses; the rest is unrestricted. Check SAM.gov for the split details.", canBid: true },
+  HZC:      { who: "HUBZone Certified Business", plain: "Only businesses certified in a Historically Underutilized Business Zone (HUBZone) can compete.", canBid: true },
+  HZS:      { who: "HUBZone Certified Business", plain: "Sole-source to a specific HUBZone firm. No competition.", canBid: false },
+  WOSB:     { who: "Woman-Owned Small Business (WOSB)", plain: "Only WOSB-certified businesses can bid. Certification comes from SBA or an SBA-approved third party.", canBid: true },
+  WOSBSS:   { who: "Woman-Owned Small Business (WOSB)", plain: "Sole-source to a specific WOSB — no open competition.", canBid: false },
+  EDWOSB:   { who: "Economically Disadvantaged WOSB (EDWOSB)", plain: "Similar to WOSB but for businesses in industries where women are economically disadvantaged. EDWOSB certification required.", canBid: true },
+  EDWOSBSS: { who: "Economically Disadvantaged WOSB (EDWOSB)", plain: "Sole-source to a specific EDWOSB — no open competition.", canBid: false },
+};
+
+export const SOLICITATION_TYPE_PLAIN = {
+  o: { label: "Active Solicitation", plain: "You can submit a bid. This is a formal request for proposals (RFP), quotes (RFQ), or bids (IFB). Read the full solicitation on SAM.gov before responding.", canBid: true },
+  k: { label: "Combined Synopsis / Solicitation", plain: "A streamlined format that combines the public notice and the solicitation in one document. You can submit a bid directly.", canBid: true },
+  p: { label: "Pre-Solicitation Notice", plain: "The agency is signaling a contract is coming soon but hasn't released the full solicitation yet. Bookmark this and check back — you'll want to bid when it opens.", canBid: false },
+  r: { label: "Sources Sought / Market Research", plain: "The agency is researching vendors before writing a solicitation. Responding here is not a bid — it's a chance to introduce your company and shape the requirements. Highly recommended.", canBid: false },
+  s: { label: "Special Notice", plain: "An informational announcement from the agency — conference invites, industry days, or other updates. Not a solicitation.", canBid: false },
+  i: { label: "Intent to Bundle (DoD)", plain: "The Department of Defense is notifying it plans to combine contracts. This affects small business opportunities. Not a solicitation.", canBid: false },
+  a: { label: "Award Notice", plain: "This contract was already awarded to another company. You cannot bid — it is closed.", canBid: false },
+  u: { label: "Justification & Approval (J&A)", plain: "The agency is justifying a sole-source or limited-competition award. Generally not open for bidding.", canBid: false },
+};

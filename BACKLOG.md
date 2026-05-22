@@ -40,15 +40,14 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ## [2026-05-22] Opus recommendations — pre-distribution outreach & visual uplift
 **Type:** Feature
-**Priority:** High — OPEN
+**Priority:** High — IN PROGRESS
 **Tags:** #frontend #ux #outreach
-**Detail:** Opus reviewed the current state and recommended the following (ordered by impact/scope):
-1. **Plain-language contract translator** (small) — "What does this mean?" toggle on each card; translate NAICS, set-aside codes, solicitation types into plain English inline. Highest newcomer signal.
-2. **Testimonials + Share button** (small) — rotating veteran quotes in hero + Web Share API button; the viral multiplier before distribution.
-3. **Mission hero with live stats ticker** (medium) — hero section above search with real SDVOSB opportunity count pulled from SAM.gov API; cached 1hr. Gives the site soul.
-4. **"Start Here" guided onboarding** (medium) — 3-step visual journey (Register → Certify → Search → Win) as a dedicated page, linked prominently in nav. Reuses existing Licensing + Primer pages.
-5. **Match Score personalization** (medium-large) — 60-second localStorage profile wizard + match score badge on cards. Post-distribution week 1.
-North star: every feature reduces friction for a newcomer. Ship #1 and #2 before Monday; #3 and #4 same weekend; #5 week of distribution.
+**Detail:** Opus reviewed the current state and recommended the following (ordered as revised with user input):
+1. **Plain-language contract translator** — SHIPPED 2026-05-22. "What does this mean?" toggle on cards.
+2. **"Start Here" guided onboarding** — SHIPPED 2026-05-22. Bumped up by user. 4-step journey page at /start with expandable FAQs, action checklists, green nav CTA.
+3. **Testimonials + Share button** — OPEN. Rotating veteran quotes + Web Share API. Ship next.
+4. **Mission hero with live stats ticker** — OPEN. Live SDVOSB count above search bar; needs `/api/contracts/stats` endpoint.
+5. **Match Score personalization** — OPEN. Post-distribution week 1.
 
 ---
 

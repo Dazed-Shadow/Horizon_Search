@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { formatDate, formatCurrency, deadlineStatus } from "../utils/formatters";
-import { SET_ASIDE_COLORS, VETERAN_CODES } from "../utils/constants";
+import { SET_ASIDE_COLORS, VETERAN_CODES, SET_ASIDE_PLAIN, SOLICITATION_TYPE_PLAIN } from "../utils/constants";
 
 // Deadline urgency indicators: color-coded top strip so users scanning a list immediately see closing-soon contracts.
 // Map urgency tier to Tailwind background/text pair; "normal" receives no strip.
@@ -37,6 +37,11 @@ export default function ContractCard({ contract, onOpen, isBookmarked, onToggleB
   const deadline = deadlineStatus(contract.response_deadline);
   const isAwarded = AWARDED_TYPES.has(contract.solicitation_type);
   const bookmarked = isBookmarked?.(contract.notice_id) ?? false;
+  const [showPlain, setShowPlain] = useState(false);
+
+  const setAsidePlain = SET_ASIDE_PLAIN[contract.set_aside_code] ?? null;
+  const solTypePlain  = SOLICITATION_TYPE_PLAIN[contract.solicitation_type] ?? null;
+  const hasPlain = setAsidePlain || solTypePlain;
 
   return (
     <article className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition overflow-hidden ${
@@ -126,6 +131,40 @@ export default function ContractCard({ contract, onOpen, isBookmarked, onToggleB
           </span>
         )}
       </div>
+
+      {/* Plain-language toggle */}
+      {hasPlain && (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setShowPlain(v => !v); }}
+            className="text-xs text-brand-600 hover:text-brand-700 hover:underline font-medium"
+          >
+            {showPlain ? "Hide explanation ▲" : "What does this mean? ▼"}
+          </button>
+
+          {showPlain && (
+            <div className="mt-2 space-y-2">
+              {setAsidePlain && (
+                <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs">
+                  <p className="font-semibold text-green-800 mb-0.5">{setAsidePlain.who}</p>
+                  <p className="text-green-700 leading-relaxed">{setAsidePlain.plain}</p>
+                  {setAsidePlain.canBid
+                    ? <p className="mt-1 font-semibold text-green-800">✓ You can bid on this if you hold this certification.</p>
+                    : <p className="mt-1 font-semibold text-red-700">✗ Not open for bidding — sole-source or already awarded.</p>
+                  }
+                </div>
+              )}
+              {solTypePlain && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs">
+                  <p className="font-semibold text-blue-800 mb-0.5">{solTypePlain.label}</p>
+                  <p className="text-blue-700 leading-relaxed">{solTypePlain.plain}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Key metrics row */}
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
