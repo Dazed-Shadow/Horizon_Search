@@ -201,6 +201,23 @@ BRANCH = "claude/military-contract-search-tool-9hm2D"
 # ── Decisions ─────────────────────────────────────────────────────────────────
 
 DECISIONS = [
+    # ── 2026-05-24 decisions ──
+    {
+        "title": "LLC identity: Shade of Design LLC, no veteran-owned claim, tagline 'Matching services to those who serve'",
+        "status": "Active", "by": "JR", "area": ["Content", "Frontend"], "date": "2026-05-24",
+        "body": "Jon is not a veteran. Shade of Design LLC (NJ single-member, design & data analytics) must never claim veteran-owned status unless a qualifying veteran holds 51%+ unconditional ownership per VetCert requirements. Tagline describes what the tool does (connects services to veterans), not what the builder is. Specialty badges: Data Analytics (blue) + Small Business (grey). 'Veteran-Owned' badge deliberately excluded from testimonials.js founderNote.specialties.",
+    },
+    {
+        "title": "NAICS insights rate-limit strategy: limit=1 reads totalRecords without fetching opportunity bodies",
+        "status": "Active", "by": "Opus", "area": ["Backend", "API"], "date": "2026-05-24",
+        "body": "SAM.gov returns totalRecords in every response even when limit=1. By sending limit=1 and offset=0 we get a precise count for any NAICS+set-aside+date-range combo at the cost of exactly 1 API call — no opportunity bodies are parsed. 12 monthly calls + 15 agency calls = 27 total calls per cold first load. asyncio.Semaphore(3) prevents burst throttling. 24h TTL for completed months and agency totals; 5m for current partial month. With caching, second request for same combo costs zero calls.",
+    },
+    {
+        "title": "Phase 2 agency breakdown: organizationName filter, top 15 federal agencies, 24h cache",
+        "status": "Active", "by": "Opus", "area": ["Backend", "API"], "date": "2026-05-24",
+        "body": "Per-agency 12-month totals fetched using SAM.gov organizationName filter with the same limit=1 totalRecords trick. TOP_AGENCIES list of 15 major federal buyers covers ~85% of veteran set-aside volume. Results sorted descending, top 5 surfaced in UI. Agency cache keys: 'agency:<naics>:<set_aside>:<agency>' in the same _insight_cache dict as monthly counts — cleared together by the autouse test fixture. All 27 tasks (12 monthly + 15 agency) run concurrently in a single asyncio.gather/AsyncClient/Semaphore block.",
+    },
+    # ── 2026-05-22 and earlier decisions ──
     {
         "title": "Railway for deployment — backend + frontend as separate services",
         "status": "Active", "by": "Sonnet", "area": ["Deploy"], "date": "2026-05-16",
@@ -274,7 +291,49 @@ def sync_decisions(db_id: str):
 # ── Backlog ───────────────────────────────────────────────────────────────────
 
 BACKLOG_ITEMS = [
-    # ── OPEN ──
+    # ── OPEN (2026-05-24) ──
+    {
+        "title": "NAICS Activity Insights Phase 3 — persistent cache, dollar trends, multi-NAICS comparison",
+        "type": "Feature", "priority": "Low", "status": "Open",
+        "tags": ["#backend", "#frontend", "#api"], "date": "2026-05-24",
+        "detail": "Deferred from Phase 2. Items: SQLite persistent cache to survive restarts; award dollar-amount trend line (parse awardAmount from historical data); compare multiple NAICS codes side-by-side.",
+    },
+    {
+        "title": "Notion keys — ACTION REQUIRED",
+        "type": "Enhancement", "priority": "High", "status": "Pending",
+        "tags": ["#docs"], "date": "2026-05-24",
+        "detail": "notion_sync.py is ready. Requires NOTION_API_KEY and NOTION_ROOT_PAGE_ID in backend/.env. Then run: python scripts/notion_sync.py from repo root. Script is idempotent — safe to re-run; skips existing titles.",
+    },
+    # ── COMPLETE (2026-05-24) ──
+    {
+        "title": "NAICS Activity Insights Phase 2 — FY forecast, agency breakdown, best months to bid",
+        "type": "Feature", "priority": "Medium", "status": "Complete",
+        "tags": ["#backend", "#frontend", "#api"], "date": "2026-05-24",
+        "detail": "Three new insight panels below the Phase 1 bar chart: (1) FY Forecast — amber callout during Jun–Sep surge window with live days-remaining count, gray mid-year/Q1; (2) Agency Breakdown — top 15 federal agencies queried via organizationName filter, indigo bar chart of top 5 active buyers; (3) Best Months to Bid — peak months as pill chips, 2-sentence recommendation, 'begin preparing by [month]' cue. 27 SAM.gov calls per cold load (12 monthly + 15 agency), all Semaphore(3)-throttled and 24h cached. 10 new tests; 51 total.",
+        "commit": "c9fceb0",
+    },
+    {
+        "title": "NAICS Activity Insights Phase 1 — 12-month historical counts + CSS bar chart",
+        "type": "Feature", "priority": "High", "status": "Complete",
+        "tags": ["#backend", "#frontend", "#api"], "date": "2026-05-24",
+        "detail": "GET /api/insights/naics-activity?naics_code=&set_aside=&months= — 12 SAM.gov calls (one per month), asyncio.gather with Semaphore(3), 24h cache historical / 5m current. NaicsInsightPanel — full-width panel above results with CSS-only bar chart, 3-stat summary, server-generated plain-language interpretation. 'View 12-month activity' button in FilterPanel NAICS section. 8 new tests; 41 total.",
+        "commit": "698cc75",
+    },
+    {
+        "title": "LLC identity — Shade of Design LLC, tagline, accurate specialties",
+        "type": "Feature", "priority": "High", "status": "Complete",
+        "tags": ["#frontend", "#ux", "#outreach"], "date": "2026-05-24",
+        "detail": "Shade of Design LLC (NJ, design & data analytics). Jon is not a veteran — no veteran-ownership claims anywhere. founderNote.name → 'Shade of Design LLC'; role → 'Design & Data Analytics · Building tools for veteran entrepreneurs'; tagline → 'Matching services to those who serve'. Specialties: Data Analytics (blue) + Small Business (grey). 'Veteran-Owned' badge explicitly excluded. Tagline updated in Navbar, footer, Mission page.",
+        "commit": "8afab9d",
+    },
+    {
+        "title": "Brand color palette — missing brand-200/300/400/800 stops causing invisible text",
+        "type": "Bug", "priority": "High", "status": "Fixed",
+        "tags": ["#frontend", "#bug", "#ux"], "date": "2026-05-24",
+        "detail": "brand-200/300/400/800 were used in 10+ components but not defined in tailwind.config.js. Tailwind generated no CSS for those classes — text fell back to inherited color (black on dark backgrounds). Fixed by adding all four missing stops to tailwind.config.js using standard indigo scale.",
+        "commit": "525a077",
+    },
+    # ── OPEN (pre-2026-05-24) ──
     {
         "title": "Brand identity — logo + company name",
         "type": "Feature", "priority": "Medium", "status": "Open",
@@ -425,6 +484,49 @@ def sync_backlog(db_id: str):
 # ── Changes / Commits ─────────────────────────────────────────────────────────
 
 ALL_COMMITS = [
+    # 2026-05-24 session
+    ("Document Notion env vars in .env.example",
+     "27a4768", "2026-05-24",
+     "backend/.env.example",
+     "NOTION_API_KEY and NOTION_ROOT_PAGE_ID were never in the example file. Added both with inline comments pointing to notion.so/my-integrations and explaining how to extract the root page ID from the URL."),
+    ("Add Phase 2 NAICS insights: FY forecast, agency breakdown, bid timing",
+     "c9fceb0", "2026-05-24",
+     "backend/models/insights.py, backend/services/insights.py, backend/tests/test_insights.py, "
+     "frontend/src/components/NaicsInsightPanel.jsx",
+     "Three new panels: (1) FY Forecast amber/gray callout with surge-window detection; (2) Agency Breakdown — 15 agencies queried via organizationName filter, top 5 as indigo bar chart; (3) Best Months to Bid — peak months as chips, recommendation, prep window. 27 total SAM.gov calls per cold load, all Semaphore(3)-throttled. 10 new tests; 51 total passing."),
+    ("NAICS Activity Insights Phase 1 — 12-month counts, bar chart, API endpoint",
+     "698cc75", "2026-05-24",
+     "backend/models/insights.py, backend/services/insights.py, backend/routers/insights.py, "
+     "backend/tests/test_insights.py, backend/tests/conftest.py, "
+     "frontend/src/hooks/useNaicsInsight.js, frontend/src/components/NaicsInsightPanel.jsx, "
+     "frontend/src/components/FilterPanel.jsx, frontend/src/pages/SearchPage.jsx",
+     "GET /api/insights/naics-activity endpoint. limit=1 totalRecords trick for rate-efficient counting. "
+     "CSS-only bar chart. 24h/5m cache split. asyncio.Semaphore(3). 8 new tests; 41 total passing."),
+    ("Fix invisible text — add missing brand-200/300/400/800 color stops to tailwind.config.js",
+     "525a077", "2026-05-24",
+     "frontend/tailwind.config.js",
+     "brand-200/300/400/800 were referenced in 10+ components but missing from the config. "
+     "Tailwind silently generated no CSS for those classes, causing black text on dark backgrounds. "
+     "Added all four stops using the standard indigo scale."),
+    ("Remove Veteran-Owned badge — correct specialties to Data Analytics + Small Business",
+     "8afab9d", "2026-05-24",
+     "frontend/src/data/testimonials.js, frontend/src/pages/MissionPage.jsx",
+     "Prior commit incorrectly added 'Veteran-Owned' as a specialty badge. Jon is not a veteran. "
+     "Fixed: specialties now ['Data Analytics', 'Small Business']; about paragraph corrected; "
+     "guard comment added in testimonials.js to prevent future regression."),
+    ("Shade of Design LLC identity — Navbar subtitle, footer tagline, mission about section",
+     "fbd7828", "2026-05-24",
+     "frontend/src/data/testimonials.js, frontend/src/pages/MissionPage.jsx, "
+     "frontend/src/components/Navbar.jsx, frontend/src/App.jsx",
+     "First LLC identity commit: Navbar subtitle → 'Matching services to those who serve'; "
+     "footer updated; founderNote.name → 'Shade of Design LLC'. Note: this commit still had "
+     "Veteran-Owned badge — corrected in next commit 8afab9d."),
+    ("notion_sync.py — comprehensive idempotent catch-up sync for all 6 Notion databases",
+     "738b8f3", "2026-05-24",
+     "scripts/notion_sync.py",
+     "Full project state sync: Decisions (10), Backlog (18), Session Log, Reference (10), "
+     "Changes (11), Test Scenarios (33). Idempotent — skips existing titles. "
+     "Blocked until user adds NOTION_API_KEY + NOTION_ROOT_PAGE_ID to backend/.env."),
     # 2026-05-22 session
     ("Trailblazers page — veteran entrepreneur profiles, articles, shareable drawers",
      "69e4d73", "2026-05-22",
@@ -559,6 +661,26 @@ ALL_TESTS = [
     ("test_limit_max_capped",            "limit > 100 rejected with 422 by FastAPI validation",                                               "Backend", "Unit",        "initial suite"),
     ("test_sdvosbc_no_keyword",          "SDVOSB filter with no keyword and integer naicsCode — mirrors original bug report",                  "Backend", "Integration", "f00295e"),
     ("test_integer_naics_does_not_drop_contract","Contracts with integer naicsCode are not silently dropped from results",                    "Backend", "Unit",        "f00295e"),
+    # test_insights.py — Phase 1 (698cc75)
+    ("test_insight_endpoint_basic",             "Endpoint returns 12 MonthlyCount objects for a valid NAICS code",                           "Backend", "Integration", "698cc75"),
+    ("test_insight_endpoint_with_set_aside",    "set_aside param forwarded to SAM.gov and reflected in response with correct label",         "Backend", "Integration", "698cc75"),
+    ("test_insight_missing_naics",              "Missing naics_code query param returns 422 validation error",                               "Backend", "Unit",        "698cc75"),
+    ("test_insight_months_param",               "months=6 query param returns exactly 6 MonthlyCount objects",                              "Backend", "Unit",        "698cc75"),
+    ("test_insight_cache_hit",                  "Second request for same NAICS serves from cache; SAM.gov called only once per month/agency","Backend", "Unit",        "698cc75"),
+    ("test_insight_sam_error_returns_502",      "SAM.gov 500 per month returns count=0; endpoint succeeds with all-zero months",            "Backend", "Integration", "698cc75"),
+    ("test_insight_avg_excludes_current_month", "avg_per_month is mean of complete months only — current partial month excluded",           "Backend", "Unit",        "698cc75"),
+    ("test_insight_zero_activity_interpretation","All-zero months produces interpretation with guidance to broaden search",                  "Backend", "Unit",        "698cc75"),
+    # test_insights.py — Phase 2 (c9fceb0)
+    ("test_bid_timing_present",                 "When months have activity, bid_timing advice is populated with best_months, recommendation, prep_window", "Backend", "Unit", "c9fceb0"),
+    ("test_bid_timing_zero_activity",           "When all months are 0, bid_timing is None",                                               "Backend", "Unit",        "c9fceb0"),
+    ("test_fy_forecast_always_present",         "fy_forecast is always included regardless of NAICS activity level",                       "Backend", "Unit",        "c9fceb0"),
+    ("test_fy_forecast_fields",                 "fy_forecast has fy_label starting with FY, bool is_surge_window, days_remaining > 0, non-empty message", "Backend", "Unit", "c9fceb0"),
+    ("test_agency_breakdown_present",           "When agencies have activity, agency_breakdown is populated with up to 5 agencies",        "Backend", "Integration", "c9fceb0"),
+    ("test_agency_breakdown_max_5_agencies",    "agency_breakdown never surfaces more than 5 agencies even when all 15 have activity",     "Backend", "Unit",        "c9fceb0"),
+    ("test_agency_breakdown_zero_activity",     "When all agency queries return 0, agency_breakdown is None",                              "Backend", "Unit",        "c9fceb0"),
+    ("test_agency_breakdown_sorted_desc",       "Agencies in breakdown are sorted by count descending",                                    "Backend", "Unit",        "c9fceb0"),
+    ("test_bid_timing_best_months_are_valid_labels", "best_months must be a subset of the complete months' labels",                       "Backend", "Unit",        "c9fceb0"),
+    ("test_phase2_response_shape",              "Full response includes all Phase 1 and Phase 2 fields (months, interpretation, bid_timing, fy_forecast, agency_breakdown)", "Backend", "Unit", "c9fceb0"),
 ]
 
 
@@ -613,54 +735,119 @@ def sync_reference(db_id: str):
 
 # ── Session Log ───────────────────────────────────────────────────────────────
 
-def add_session_log(db_id: str):
-    """Always appends a new session log entry for today."""
-    create_page(db_id, {
-        "Session": {"title": rich_text("2026-05-22 · Opus visual uplift + outreach features")},
-        "Date":    {"date": {"start": "2026-05-22"}},
-        "Agent":   {"select": {"name": "Opus + Sonnet"}},
-        "Branch":  {"rich_text": rich_text(BRANCH)},
-        "Status":  {"select": {"name": "Complete"}},
-    }, children=[
-        heading_block(2, "What was done"),
-        bullet_block("Plain-language translator toggle on contract cards (SET_ASIDE_PLAIN, SOLICITATION_TYPE_PLAIN)"),
-        bullet_block("Start Here onboarding page at /start — 4 steps, EIN card, NAICS code directory (55 codes, 7 categories)"),
-        bullet_block("Testimonials + ShareButton — TestimonialStrip on Mission page, Web Share API + clipboard fallback"),
-        bullet_block("Mission page at /mission — hero, 3 values cards, founder note, full testimonial grid, CTAs"),
-        bullet_block("GET /api/contracts/stats endpoint — 1hr cache, asyncio.gather for concurrent SAM.gov calls"),
-        bullet_block("Trailblazers page at /trailblazers — 5 figures (Fred Smith, Jocko Willink, David Goggins, Mark Oz Geist, Adam Driver)"),
-        bullet_block("TrailblazerDrawer — bio, resources, articles; deep-link via ?figure= param"),
-        bullet_block("ArticleList — 9 seed articles, 5 bucket filters, source color badges"),
-        bullet_block("Drawer polish from earlier: CSS slide-in-right, Tab focus trap, ?notice= deep-link"),
-        bullet_block("GET /api/contracts/{notice_id} endpoint — placed after /stats and /filters/* to prevent route shadowing"),
-        bullet_block("notion_sync.py — comprehensive idempotent sync script for full project state"),
-        divider_block(),
-        heading_block(2, "Key decisions"),
-        bullet_block("Trailblazer figure selection: Goggins replaced Robert L. Johnson (unverifiable military service); Driver replaced Jaime Cruz (Veteran Roasters — insufficient documentation)"),
-        bullet_block("Testimonials: placeholder strategy with sourceUrl field auto-activating story links; JR will source real SBA quotes by weekend"),
-        bullet_block("Route ordering: wildcard /{notice_id} must always be last in contracts.py"),
-        bullet_block("Stats cache: _STATS_CACHE dict with _STATS_TTL=3600 seconds, asyncio.gather for 4 concurrent set-aside counts"),
-        divider_block(),
-        heading_block(2, "Next session"),
-        bullet_block("Merge branch to main so Railway deploys the new pages (PR required)"),
-        bullet_block("Replace placeholder testimonials with real SBA veteran success stories"),
-        bullet_block("Verify article URLs marked verify:true in articles.json before distribution"),
-        bullet_block("Logo + company name — pending owner's veteran LLC registration"),
-        bullet_block("Match Score personalization (post-distribution, week 1)"),
-        divider_block(),
-        heading_block(2, "Commits this session"),
-        bullet_block("1bdea9c — Drawer polish: slide-in animation, focus trap, deep-link + notice ID endpoint"),
-        bullet_block("5ca90a9 — Plain-language translator + Start Here onboarding page"),
-        bullet_block("66ce696 — Start Here: EIN prerequisite card + NAICS code directory"),
-        bullet_block("dcbfe69 — Testimonials + Share button"),
-        bullet_block("e834300 — Mission page + live stats ticker"),
-        bullet_block("69e4d73 — Trailblazers page — veteran entrepreneur profiles, articles, shareable drawers"),
-        divider_block(),
-        heading_block(2, "Open blockers"),
-        bullet_block("Notion logging was BLOCKED all session — NOTION_API_KEY and NOTION_ROOT_PAGE_ID missing from backend/.env"),
-        bullet_block("Resolution: user adds keys, runs notion_sync.py — this session log is the catch-up entry"),
-    ])
-    print("  Session Log: entry added for 2026-05-22")
+SESSION_LOGS = [
+    {
+        "title": "2026-05-22 · Opus visual uplift + outreach features",
+        "date": "2026-05-22", "agent": "Opus + Sonnet", "status": "Complete",
+        "done": [
+            "Plain-language translator toggle on contract cards (SET_ASIDE_PLAIN, SOLICITATION_TYPE_PLAIN)",
+            "Start Here onboarding page at /start — 4 steps, EIN card, NAICS code directory (55 codes, 7 categories)",
+            "Testimonials + ShareButton — TestimonialStrip on Mission page, Web Share API + clipboard fallback",
+            "Mission page at /mission — hero, 3 values cards, founder note, full testimonial grid, CTAs",
+            "GET /api/contracts/stats endpoint — 1hr cache, asyncio.gather for concurrent SAM.gov calls",
+            "Trailblazers page at /trailblazers — 5 figures (Fred Smith, Jocko Willink, David Goggins, Mark Oz Geist, Adam Driver)",
+            "TrailblazerDrawer — bio, resources, articles; deep-link via ?figure= param",
+            "ArticleList — 9 seed articles, 5 bucket filters, source color badges",
+            "Drawer polish from earlier: CSS slide-in-right, Tab focus trap, ?notice= deep-link",
+            "GET /api/contracts/{notice_id} endpoint — placed after /stats and /filters/* to prevent route shadowing",
+            "notion_sync.py — comprehensive idempotent sync script for full project state",
+        ],
+        "decisions": [
+            "Trailblazer figure selection: Goggins replaced Robert L. Johnson (unverifiable military service); Driver replaced Jaime Cruz (Veteran Roasters — insufficient documentation)",
+            "Testimonials: placeholder strategy with sourceUrl field auto-activating story links; JR will source real SBA quotes",
+            "Route ordering: wildcard /{notice_id} must always be last in contracts.py",
+            "Stats cache: _STATS_CACHE dict with _STATS_TTL=3600 seconds, asyncio.gather for 4 concurrent set-aside counts",
+        ],
+        "next": [
+            "Merge branch to main so Railway deploys the new pages (PR required)",
+            "Replace placeholder testimonials with real SBA veteran success stories",
+            "Verify article URLs marked verify:true in articles.json before distribution",
+            "Logo + company name — pending owner's LLC formation",
+            "Match Score personalization (post-distribution, week 1)",
+        ],
+        "commits": [
+            "1bdea9c — Drawer polish: slide-in animation, focus trap, deep-link + notice ID endpoint",
+            "5ca90a9 — Plain-language translator + Start Here onboarding page",
+            "66ce696 — Start Here: EIN prerequisite card + NAICS code directory",
+            "dcbfe69 — Testimonials + Share button",
+            "e834300 — Mission page + live stats ticker",
+            "69e4d73 — Trailblazers page — veteran entrepreneur profiles, articles, shareable drawers",
+        ],
+        "blockers": [
+            "Notion logging was BLOCKED all session — NOTION_API_KEY and NOTION_ROOT_PAGE_ID missing from backend/.env",
+        ],
+    },
+    {
+        "title": "2026-05-24 · LLC identity, brand colors, NAICS Activity Insights Phase 1 + Phase 2",
+        "date": "2026-05-24", "agent": "Opus + Sonnet", "status": "Complete",
+        "done": [
+            "Shade of Design LLC identity: founderNote corrected, Navbar subtitle + footer tagline updated",
+            "Removed Veteran-Owned badge — Jon is not a veteran; specialties now Data Analytics + Small Business only",
+            "Fixed invisible text: added brand-200/300/400/800 color stops to tailwind.config.js (affected 10+ components)",
+            "NAICS Activity Insights Phase 1: GET /api/insights/naics-activity, NaicsInsightPanel, CSS bar chart, 12-month cache — 41 tests",
+            "NAICS Activity Insights Phase 2: FY Forecast (surge window callout), Agency Breakdown (top 15 federal buyers, indigo bar chart), Best Months to Bid (peak chips + prep window) — 51 tests",
+            "notion_sync.py completed and first successful Notion sync run by JR",
+            "backend/.env.example updated with Notion key documentation",
+        ],
+        "decisions": [
+            "LLC identity: Shade of Design LLC must never claim veteran-owned status. Tagline 'Matching services to those who serve' describes what the tool does, not what the builder is.",
+            "NAICS rate-limit strategy: limit=1 reads totalRecords without fetching opportunity bodies — 27 calls per cold load (12 monthly + 15 agency), Semaphore(3), 24h cache",
+            "Agency breakdown: TOP_AGENCIES list of 15 federal buyers; organizationName filter with same totalRecords trick; top 5 returned to UI sorted descending",
+        ],
+        "next": [
+            "Replace placeholder testimonials with real SBA veteran success stories",
+            "Verify article URLs marked verify:true in articles.json before distribution",
+            "Logo: replace scales SVG in Navbar + 80x80 square in MissionPage with Shade of Design brand mark",
+            "Match Score personalization (post-distribution, week 1)",
+            "NAICS Phase 3: SQLite persistent cache, dollar-amount trends, multi-NAICS comparison",
+        ],
+        "commits": [
+            "fbd7828 — Shade of Design LLC identity — Navbar subtitle, footer tagline, mission about section",
+            "8afab9d — Remove Veteran-Owned badge — correct specialties to Data Analytics + Small Business",
+            "525a077 — Fix invisible text — add missing brand-200/300/400/800 color stops",
+            "698cc75 — NAICS Activity Insights Phase 1 — 12-month counts, bar chart, API endpoint",
+            "c9fceb0 — NAICS Activity Insights Phase 2 — FY forecast, agency breakdown, bid timing",
+            "27a4768 — Document Notion env vars in .env.example",
+        ],
+        "blockers": [],
+    },
+]
+
+
+def sync_session_logs(db_id: str):
+    existing = existing_titles(db_id)
+    added = 0
+    for log in SESSION_LOGS:
+        if log["title"] in existing:
+            continue
+        children = [heading_block(2, "What was done")]
+        for item in log["done"]:
+            children.append(bullet_block(item))
+        if log["decisions"]:
+            children += [divider_block(), heading_block(2, "Key decisions")]
+            for item in log["decisions"]:
+                children.append(bullet_block(item))
+        if log["next"]:
+            children += [divider_block(), heading_block(2, "Next session")]
+            for item in log["next"]:
+                children.append(bullet_block(item))
+        if log["commits"]:
+            children += [divider_block(), heading_block(2, "Commits this session")]
+            for item in log["commits"]:
+                children.append(bullet_block(item))
+        if log["blockers"]:
+            children += [divider_block(), heading_block(2, "Open blockers")]
+            for item in log["blockers"]:
+                children.append(bullet_block(item))
+        create_page(db_id, {
+            "Session": {"title": rich_text(log["title"])},
+            "Date":    {"date": {"start": log["date"]}},
+            "Agent":   {"select": {"name": log["agent"]}},
+            "Branch":  {"rich_text": rich_text(BRANCH)},
+            "Status":  {"select": {"name": log["status"]}},
+        }, children=children)
+        added += 1
+    print(f"  Session Log: {added} added, {len(existing)} already existed")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -683,7 +870,7 @@ def main():
     print("\n[3/6] Session Log database...")
     session_id, _ = get_or_create_database(ROOT_PAGE_ID, "Session Log", SESSION_LOG_PROPS,
                                             "NOTION_SESSION_DB", env_path)
-    add_session_log(session_id)
+    sync_session_logs(session_id)
 
     print("\n[4/6] Reference database...")
     reference_id, _ = get_or_create_database(ROOT_PAGE_ID, "Reference", REFERENCE_PROPS,
