@@ -59,6 +59,15 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-05-24] Brand color palette — missing stops causing invisible text — FIXED
+**Type:** Bug
+**Priority:** High — COMPLETE
+**Tags:** #frontend #bug #ux
+**Detail:** `brand-200`, `brand-300`, `brand-400`, `brand-800` were used across 10+ components but not defined in `tailwind.config.js`. Tailwind generated no CSS for those classes, so text fell back to inherited color — black on dark backgrounds (Mission testimonials section, Navbar subtitle, SearchPage quick-filter label, TrailblazersPage bottom CTA, etc.). The "Mission" nav text appearing black was a symptom of this broader gap.
+**Resolution:** Added the four missing stops to `tailwind.config.js` using the standard Tailwind indigo scale (200→#c7d2fe, 300→#a5b4fc, 400→#818cf8, 800→#312e81). Full brand-50 through brand-900 palette now defined.
+
+---
+
 ## [2026-05-24] Notion keys — ACTION REQUIRED
 **Type:** Enhancement
 **Priority:** High — BLOCKED (waiting on JR)
