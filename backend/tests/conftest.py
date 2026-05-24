@@ -18,11 +18,14 @@ async def client():
 
 @pytest.fixture(autouse=True)
 def clear_sam_cache():
-    """Wipe the in-memory SAM.gov cache before every test so tests don't bleed."""
+    """Wipe all in-memory caches before every test so tests don't bleed."""
     from services.sam_gov import _response_cache
     _response_cache.clear()
+    from services.insights import _insight_cache
+    _insight_cache.clear()
     yield
     _response_cache.clear()
+    _insight_cache.clear()
 
 
 # Minimal SAM.gov opportunity payload

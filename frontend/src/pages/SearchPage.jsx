@@ -4,10 +4,13 @@ import FilterPanel from "../components/FilterPanel";
 import ContractList from "../components/ContractList";
 import ContractDetailDrawer from "../components/ContractDetailDrawer";
 import BookmarksPanel from "../components/BookmarksPanel";
+import NaicsInsightPanel from "../components/NaicsInsightPanel";
 import ShareButton from "../components/ShareButton";
 import { useContracts } from "../hooks/useContracts";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { useOpportunityStats } from "../hooks/useOpportunityStats";
+import { useNaicsInsight } from "../hooks/useNaicsInsight";
+import { COMMON_NAICS } from "../utils/constants";
 
 const QUICK_FILTERS = [
   { label: "All SDVOSB",       set_aside: "SDVOSBC" },
@@ -62,6 +65,7 @@ export default function SearchPage() {
     sortBy, setSortBy, sortedContracts } = useContracts();
   const { bookmarks, isBookmarked, toggleBookmark, removeBookmark, count: bookmarkCount } = useBookmarks();
   const { stats } = useOpportunityStats();
+  const { data: insightData, loading: insightLoading, error: insightError, fetchInsight, clear: clearInsight } = useNaicsInsight();
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
@@ -112,6 +116,10 @@ export default function SearchPage() {
     if (qf.set_aside)         return filters.set_aside === qf.set_aside;
     if (qf.solicitation_type) return filters.solicitation_type === qf.solicitation_type;
     return false;
+  }
+
+  function handleRequestInsight(naicsCode) {
+    fetchInsight(naicsCode, filters.set_aside || null);
   }
 
   function openBookmarksPanel() {
@@ -206,6 +214,7 @@ export default function SearchPage() {
               onUpdate={updateFilter}
               onSearch={() => search(filters, 0)}
               onReset={resetFilters}
+              onRequestInsight={handleRequestInsight}
             />
 
             <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4 text-sm">
@@ -229,6 +238,14 @@ export default function SearchPage() {
 
           {/* Results */}
           <div className="flex-1 min-w-0">
+            <NaicsInsightPanel
+              data={insightData}
+              loading={insightLoading}
+              error={insightError}
+              onDismiss={clearInsight}
+              naicsLabel={COMMON_NAICS.find(n => n.code === insightData?.naics_code)?.label}
+            />
+
             {results && hasActiveFilters && (
               <span className="inline-block bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full text-xs font-medium mb-4">
                 Filters active

@@ -59,6 +59,30 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-05-24] NAICS Activity Insights — Phase 1 (backtesting + forecasting foundation)
+**Type:** Feature
+**Priority:** High — COMPLETE
+**Tags:** #backend #frontend #api #ux
+**Detail:** 12-month historical contract count aggregation for any NAICS + set-aside combo. Shows veterans how active a given code has been before they commit to pursuing certifications.
+- `GET /api/insights/naics-activity?naics_code=&set_aside=&months=` — 12 SAM.gov calls (one per month), asyncio.gather with Semaphore(3), 24h cache historical / 5m current
+- `NaicsInsightPanel` — full-width panel above results with CSS-only bar chart (no chart library), 3-stat summary, and server-generated plain-language interpretation
+- "View 12-month activity" button in FilterPanel NAICS section (visible when a NAICS code is selected)
+- FY end detection: interpretation mentions July–September surge when peak falls in those months
+- 8 new tests, all passing. Total test suite: 41 tests.
+**Resolution:** Committed 2026-05-24.
+
+## [2026-05-24] NAICS Activity Insights — Phase 2 (deferred)
+**Type:** Feature
+**Priority:** Medium — OPEN
+**Tags:** #backend #frontend #api
+**Detail:** Deferred from Phase 1. Items for next session:
+- Fiscal year spending forecast ("September surge" predictive callout — you're 60 days out)
+- Per-agency breakdown within a NAICS code (which agencies post the most?)
+- Award dollar-amount trend line (parse awardAmount from historical data)
+- Compare multiple NAICS codes side-by-side
+- Persistent cache (SQLite) to survive restarts and reduce SAM.gov calls across sessions
+- "Best months to bid" recommendation based on historical posting volume
+
 ## [2026-05-24] Brand color palette — missing stops causing invisible text — FIXED
 **Type:** Bug
 **Priority:** High — COMPLETE

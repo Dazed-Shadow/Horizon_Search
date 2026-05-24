@@ -26,7 +26,7 @@ const SET_ASIDE_GROUPS = SET_ASIDES.reduce((acc, sa) => {
   return acc;
 }, {});
 
-export default function FilterPanel({ filters, onUpdate, onSearch, onReset }) {
+export default function FilterPanel({ filters, onUpdate, onSearch, onReset, onRequestInsight }) {
   return (
     <aside className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-1">
       <div className="flex items-center justify-between mb-2">
@@ -111,6 +111,21 @@ export default function FilterPanel({ filters, onUpdate, onSearch, onReset }) {
             if (v) onUpdate("naics_code", v);
           }}
         />
+        {filters.naics_code && onRequestInsight && (
+          <button
+            type="button"
+            onClick={() => onRequestInsight(filters.naics_code)}
+            className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs font-semibold
+                       text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100
+                       border border-brand-200 rounded-lg py-1.5 transition"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            View 12-month activity
+          </button>
+        )}
       </FilterSection>
 
       <FilterSection title="Agency / Department">
