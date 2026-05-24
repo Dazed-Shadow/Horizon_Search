@@ -48,10 +48,11 @@ export const testimonials = [
 // ---------------------------------------------------------------------------
 export const founderNote = {
   message: "Horizon Search exists because veterans have earned more than a thank-you — they've earned a fair shot at the opportunities their service helped protect. This tool is my small part in making that shot a little easier to find.",
-  // Replace the line above with your own message before distributing the link.
-  name: "Horizon Search",
-  role: "Built for the veteran business community",
+  // Replace the line above with your own words before distributing the link.
+  name: "Shade of Design LLC",
+  role: "Design & Data Analytics · Building tools for veteran entrepreneurs",
   tagline: "Matching services to those who serve",
-  // Add more as certifications are obtained: "SDVOSB", "SAM.gov Registered", etc.
-  specialties: ["Data Analytics", "Veteran-Owned"],
+  // Accurate designations only — do not add "Veteran-Owned" unless a qualifying
+  // veteran holds 51%+ unconditional ownership per VetCert requirements.
+  specialties: ["Data Analytics", "Small Business"],
 };

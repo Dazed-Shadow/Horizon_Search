@@ -38,24 +38,24 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
-## [2026-05-24] LLC identity — data analyst pin + mission tagline
+## [2026-05-24] LLC identity — Shade of Design LLC, tagline, accurate specialties
 **Type:** Feature
 **Priority:** High — COMPLETE
 **Tags:** #frontend #ux #outreach
-**Detail:** JR registered a veteran-owned data analytics LLC. Three identity changes shipped:
-1. **Tagline** "Matching services to those who serve" — now in Navbar subtitle (every page), footer (every page), and Mission page About section.
-2. **Data analyst pin** — "Data Analytics" + "Veteran-Owned" specialty badges in the Mission page About section. Same pill/badge visual language as TrailblazerCard tags and testimonial cert badges. Array-driven so JR can add "SDVOSB" / "SAM.gov Registered" later.
-3. **Practitioner paragraph** — About section copy updated: "built by a veteran-owned data analytics firm walking the same path — registered in SAM.gov and pursuing the same opportunities this tool helps surface."
+**Detail:** Jon registered Shade of Design LLC (New Jersey, single-member, design & data analytics). Jon is not a veteran. Site updated to reflect accurate identity — no veteran-ownership claims anywhere:
+1. **Company name** — `founderNote.name` → "Shade of Design LLC"; `founderNote.role` → "Design & Data Analytics · Building tools for veteran entrepreneurs"
+2. **Tagline** "Matching services to those who serve" — Navbar subtitle (every page), footer (every page), Mission About section. Describes what the tool does (connects services to veterans), not what the builder is.
+3. **Specialty badges** — "Data Analytics" (blue) + "Small Business" (grey). "Veteran-Owned" deliberately excluded — do not add it unless a qualifying veteran holds 51%+ unconditional ownership per VetCert.
+4. **About paragraph** — "built by Shade of Design LLC — a small design and data analytics business dedicated to building tools that help veteran entrepreneurs access federal contracting opportunities."
 **Resolution:** Committed 2026-05-24. Files: `testimonials.js`, `MissionPage.jsx`, `Navbar.jsx`, `App.jsx`.
 
-## [2026-05-22] Brand identity — logo + company name
+## [2026-05-22] Brand identity — logo (still open)
 **Type:** Feature
-**Priority:** Medium — OPEN (partial)
+**Priority:** Medium — OPEN
 **Tags:** #frontend #ux #docs
-**Detail:** Two items remain:
-- **Logo**: A proper mark for Horizon Search to replace the current SVG placeholder in the Mission page About section (80×80 brand-900 square) and `Navbar.jsx` (scales SVG). Consider horizon line / star / compass motif.
-- **Company name**: LLC is registered but official name not yet set in the site. When decided, update `founderNote.name` in `testimonials.js`, Mission page About `<h2>`, and footer in `App.jsx`.
-- **Next steps**: Once company name is decided, do a single pass on `testimonials.js` (`name` field) and optionally add "SAM.gov Registered" to `founderNote.specialties`.
+**Detail:** Company name RESOLVED — "Shade of Design LLC" is now live in `founderNote.name` and the Mission page About section. One item remains:
+- **Logo**: Replace the scales SVG placeholder in `Navbar.jsx` and the 80×80 brand-900 square in `MissionPage.jsx` About section. Shade of Design has a brand kit (shield/flame mark, Deep Ocean Blue #1A3E62, Slate Grey-Blue #5D809D). When the Horizon Search logo is ready, drop an SVG into `frontend/src/assets/` and update both components.
+- **Optional**: If SAM.gov registration completes, add `"SAM.gov Registered"` to `founderNote.specialties` array in `testimonials.js`.
 
 ---
 

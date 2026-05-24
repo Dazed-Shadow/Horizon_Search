@@ -160,8 +160,8 @@ export default function MissionPage() {
                     <span key={spec} className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
                       spec === "Data Analytics"
                         ? "bg-blue-50 text-blue-700 border-blue-200"
-                        : spec === "Veteran-Owned"
-                        ? "bg-green-50 text-green-700 border-green-200"
+                        : spec === "Small Business"
+                        ? "bg-gray-100 text-gray-600 border-gray-200"
                         : "bg-gray-100 text-gray-600 border-gray-200"
                     }`}>
                       {spec}
@@ -173,9 +173,9 @@ export default function MissionPage() {
                 "{founderNote.message}"
               </blockquote>
               <p className="text-sm text-gray-500 leading-relaxed">
-                Horizon Search is built by a veteran-owned data analytics firm walking the same path —
-                registered in SAM.gov and pursuing the same opportunities this tool helps surface.
-                Free to use, no account required, no tracking.
+                Horizon Search is built by Shade of Design LLC — a small design and data analytics
+                business dedicated to building tools that help veteran entrepreneurs access federal
+                contracting opportunities. Free to use, no account required, no tracking.
               </p>
             </div>
           </div>
