@@ -71,17 +71,26 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 - 8 new tests, all passing. Total test suite: 41 tests.
 **Resolution:** Committed 2026-05-24.
 
-## [2026-05-24] NAICS Activity Insights — Phase 2 (deferred)
+## [2026-05-24] NAICS Activity Insights — Phase 2 (best months, FY forecast, agency breakdown)
 **Type:** Feature
-**Priority:** Medium — OPEN
+**Priority:** Medium — COMPLETE
 **Tags:** #backend #frontend #api
-**Detail:** Deferred from Phase 1. Items for next session:
-- Fiscal year spending forecast ("September surge" predictive callout — you're 60 days out)
-- Per-agency breakdown within a NAICS code (which agencies post the most?)
+**Detail:** Three new insight features added to the NAICS Activity panel:
+1. **Best Months to Bid** — top 3 high-activity months, slowest months, 2-sentence recommendation, prep window (begin by [month before peak])
+2. **FY Forecast / Surge Countdown** — amber callout during June–Sep surge window; gray callout mid-year and Q1; always shows days remaining until Sep 30
+3. **Per-Agency Breakdown** — 15 major federal agencies queried via `organizationName` filter; indigo bar chart of top 5 active agencies; plain-language interpretation
+- 27 SAM.gov calls per first load (12 monthly + 15 agency); all cached 24h; same Semaphore(3) concurrency
+- 10 new tests (agency, bid timing, FY forecast, shape); 51 total tests, all passing
+**Resolution:** Committed 2026-05-24. Files: `backend/models/insights.py`, `backend/services/insights.py`, `backend/tests/test_insights.py`, `frontend/src/components/NaicsInsightPanel.jsx`.
+
+## [2026-05-24] NAICS Activity Insights — Phase 3 (deferred)
+**Type:** Feature
+**Priority:** Low — OPEN
+**Tags:** #backend #frontend #api
+**Detail:** Items deferred from Phase 2 for a future session:
+- Persistent cache (SQLite) to survive restarts and reduce SAM.gov calls across sessions
 - Award dollar-amount trend line (parse awardAmount from historical data)
 - Compare multiple NAICS codes side-by-side
-- Persistent cache (SQLite) to survive restarts and reduce SAM.gov calls across sessions
-- "Best months to bid" recommendation based on historical posting volume
 
 ## [2026-05-24] Brand color palette — missing stops causing invisible text — FIXED
 **Type:** Bug
