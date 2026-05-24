@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { testimonials, founderNote } from "../data/testimonials";
+import { testimonials, founderNote, communityNote } from "../data/testimonials";
 import ShareButton from "../components/ShareButton";
 
 const CERT_COLORS = {
@@ -53,24 +53,16 @@ function TestimonialCard({ t }) {
       <blockquote className="text-gray-700 text-sm leading-relaxed flex-1 mb-4">
         {t.quote}
       </blockquote>
-      <div className="flex items-end justify-between gap-3 mt-auto pt-4 border-t border-gray-100">
+      <div className="flex items-center justify-between gap-3 mt-auto pt-4 border-t border-gray-100">
         <div>
-          <p className="font-semibold text-gray-900 text-sm">{t.name}</p>
-          <p className="text-gray-400 text-xs mt-0.5">{t.company} · {t.state}</p>
+          <p className="text-gray-600 text-xs font-medium">{t.role}</p>
+          <p className="text-gray-400 text-xs mt-0.5">{t.state}</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {t.certification && (
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${CERT_COLORS[t.certification] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}>
-              {t.certification}
-            </span>
-          )}
-          {t.sourceUrl && (
-            <a href={t.sourceUrl} target="_blank" rel="noopener noreferrer"
-              className="text-xs text-brand-600 hover:underline font-medium">
-              Story ↗
-            </a>
-          )}
-        </div>
+        {t.certification && (
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full border shrink-0 ${CERT_COLORS[t.certification] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}>
+            {t.certification}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -189,16 +181,16 @@ export default function MissionPage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-brand-300 mb-2">
               From the community
             </p>
-            <h2 className="text-2xl font-bold text-white mb-2">Veterans on federal contracting</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">Voices on the SAM.gov journey</h2>
             <p className="text-brand-300 text-sm max-w-xl mx-auto">
-              Firsthand accounts from veteran business owners who have navigated the federal contracting process.
+              Common insights from veteran entrepreneurs navigating federal contracting — certifications, SAM.gov registration, and winning that first contract.
             </p>
           </div>
           <div className="grid sm:grid-cols-3 gap-5">
             {testimonials.map((t, i) => <TestimonialCard key={i} t={t} />)}
           </div>
-          <p className="text-center text-brand-400 text-xs mt-6">
-            Have a story to share? Reach out — we'd love to feature more veteran voices here.
+          <p className="text-center text-brand-400 text-xs mt-6 max-w-2xl mx-auto leading-relaxed">
+            {communityNote}
           </p>
         </div>
       </div>
