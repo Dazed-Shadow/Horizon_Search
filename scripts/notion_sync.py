@@ -14,6 +14,7 @@ Requirements in backend/.env:
     NOTION_ROOT_PAGE_ID=<32-char hex ID of the root page>
 """
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -176,7 +177,9 @@ REFERENCE_PROPS = {
 }
 
 
-# ── Helper ────────────────────────────────────────────────────────────────────
+BRANCH = "claude/military-contract-search-tool-9hm2D"
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def existing_titles(db_id: str) -> set:
     """Return set of title strings already in a database (to skip duplicates)."""
@@ -184,8 +187,7 @@ def existing_titles(db_id: str) -> set:
     titles = set()
     for p in pages:
         props = p.get("properties", {})
-        for key in ("Decision", "Title", "Session", "Commit Message",
-                    "Test Name", "Commit Message"):
+        for key in ("Decision", "Title", "Session", "Commit Message", "Test Name"):
             val = props.get(key, {})
             if val.get("type") == "title":
                 items = val.get("title", [])
@@ -195,7 +197,42 @@ def existing_titles(db_id: str) -> set:
     return titles
 
 
-BRANCH = "claude/military-contract-search-tool-9hm2D"
+def _add(label: str) -> None:
+    print(f"    + {label}")
+
+
+def _skip(label: str) -> None:
+    print(f"    · skip  {label}")
+
+
+def _err(label: str, exc: Exception) -> None:
+    print(f"    ! ERROR {label}: {exc}")
+
+
+def check_git_version() -> None:
+    """Warn if the local repo is behind the remote branch."""
+    try:
+        repo = Path(__file__).parent.parent
+        local = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+        ).strip()[:7]
+        # fetch quietly so we can compare without pulling
+        subprocess.run(
+            ["git", "fetch", "origin", BRANCH, "--quiet"],
+            cwd=repo, capture_output=True
+        )
+        remote = subprocess.check_output(
+            ["git", "rev-parse", f"origin/{BRANCH}"],
+            cwd=repo, text=True
+        ).strip()[:7]
+        if local == remote:
+            print(f"  Git: local is current ({local}) — OK")
+        else:
+            print(f"  Git: WARNING — local={local} but origin={remote}")
+            print("       Run: git pull origin " + BRANCH)
+            print("       Then re-run this script to pick up the latest data.\n")
+    except Exception:
+        print("  Git: could not verify version (non-fatal)")
 
 
 # ── Decisions ─────────────────────────────────────────────────────────────────
@@ -273,19 +310,25 @@ DECISIONS = [
 
 def sync_decisions(db_id: str):
     existing = existing_titles(db_id)
-    added = 0
+    added = errors = 0
     for d in DECISIONS:
         if d["title"] in existing:
+            _skip(d["title"][:80])
             continue
-        create_page(db_id, {
-            "Decision": {"title": rich_text(d["title"])},
-            "Status":   {"select": {"name": d["status"]}},
-            "Made By":  {"select": {"name": d["by"]}},
-            "Area":     {"multi_select": [{"name": a} for a in d["area"]]},
-            "Date":     {"date": {"start": d["date"]}},
-        }, children=[paragraph_block(d["body"])])
-        added += 1
-    print(f"  Decisions: {added} added, {len(existing)} already existed")
+        try:
+            create_page(db_id, {
+                "Decision": {"title": rich_text(d["title"])},
+                "Status":   {"select": {"name": d["status"]}},
+                "Made By":  {"select": {"name": d["by"]}},
+                "Area":     {"multi_select": [{"name": a} for a in d["area"]]},
+                "Date":     {"date": {"start": d["date"]}},
+            }, children=[paragraph_block(d["body"])])
+            _add(d["title"][:80])
+            added += 1
+        except Exception as exc:
+            _err(d["title"][:60], exc)
+            errors += 1
+    print(f"  → {added} added, {len(existing)} skipped, {errors} errors")
 
 
 # ── Backlog ───────────────────────────────────────────────────────────────────
@@ -461,24 +504,30 @@ BACKLOG_ITEMS = [
 
 def sync_backlog(db_id: str):
     existing = existing_titles(db_id)
-    added = 0
+    added = errors = 0
     for item in BACKLOG_ITEMS:
         if item["title"] in existing:
+            _skip(item["title"][:80])
             continue
-        props = {
-            "Title":    {"title": rich_text(item["title"])},
-            "Type":     {"select": {"name": item["type"]}},
-            "Priority": {"select": {"name": item["priority"]}},
-            "Status":   {"select": {"name": item["status"]}},
-            "Tags":     {"multi_select": [{"name": t} for t in item["tags"]]},
-            "Date":     {"date": {"start": item["date"]}},
-        }
-        if "commit" in item:
-            props["Commit"] = {"rich_text": rich_text(item["commit"])}
-        children = [paragraph_block(item["detail"])] if "detail" in item else None
-        create_page(db_id, props, children=children)
-        added += 1
-    print(f"  Backlog: {added} added, {len(existing)} already existed")
+        try:
+            props = {
+                "Title":    {"title": rich_text(item["title"])},
+                "Type":     {"select": {"name": item["type"]}},
+                "Priority": {"select": {"name": item["priority"]}},
+                "Status":   {"select": {"name": item["status"]}},
+                "Tags":     {"multi_select": [{"name": t} for t in item["tags"]]},
+                "Date":     {"date": {"start": item["date"]}},
+            }
+            if "commit" in item:
+                props["Commit"] = {"rich_text": rich_text(item["commit"])}
+            children = [paragraph_block(item["detail"])] if "detail" in item else None
+            create_page(db_id, props, children=children)
+            _add(f"[{item['status']}] {item['title'][:70]}")
+            added += 1
+        except Exception as exc:
+            _err(item["title"][:60], exc)
+            errors += 1
+    print(f"  → {added} added, {len(existing)} skipped, {errors} errors")
 
 
 # ── Changes / Commits ─────────────────────────────────────────────────────────
@@ -604,22 +653,28 @@ ALL_COMMITS = [
 
 def sync_changes(db_id: str):
     existing = existing_titles(db_id)
-    added = 0
+    added = errors = 0
     for msg, hash_, date, files, detail in ALL_COMMITS:
-        title = f"{hash_[:7]} — {msg}"
-        if title in existing or msg in existing:
+        label = f"{hash_[:7]} — {msg}"
+        if label in existing or msg in existing:
+            _skip(label[:80])
             continue
-        create_page(db_id, {
-            "Commit Message": {"title": rich_text(msg)},
-            "Commit Hash":    {"rich_text": rich_text(hash_)},
-            "Date":           {"date": {"start": date}},
-            "Branch":         {"rich_text": rich_text(BRANCH)},
-            "Test Status":    {"select": {"name": "All Passing"}},
-            "Files Changed":  {"rich_text": rich_text(files[:2000])},
-            "Pushed By":      {"select": {"name": "Sonnet"}},
-        }, children=[paragraph_block(detail)])
-        added += 1
-    print(f"  Changes: {added} added, {len(existing)} already existed")
+        try:
+            create_page(db_id, {
+                "Commit Message": {"title": rich_text(msg)},
+                "Commit Hash":    {"rich_text": rich_text(hash_)},
+                "Date":           {"date": {"start": date}},
+                "Branch":         {"rich_text": rich_text(BRANCH)},
+                "Test Status":    {"select": {"name": "All Passing"}},
+                "Files Changed":  {"rich_text": rich_text(files[:2000])},
+                "Pushed By":      {"select": {"name": "Sonnet"}},
+            }, children=[paragraph_block(detail)])
+            _add(label[:80])
+            added += 1
+        except Exception as exc:
+            _err(label[:60], exc)
+            errors += 1
+    print(f"  → {added} added, {len(existing)} skipped, {errors} errors")
 
 
 # ── Test Scenarios ────────────────────────────────────────────────────────────
@@ -686,20 +741,26 @@ ALL_TESTS = [
 
 def sync_test_scenarios(db_id: str):
     existing = existing_titles(db_id)
-    added = 0
+    added = errors = 0
     for name, desc, area, kind, commit in ALL_TESTS:
         if name in existing:
+            _skip(name)
             continue
-        create_page(db_id, {
-            "Test Name":   {"title": rich_text(name)},
-            "Description": {"rich_text": rich_text(desc)},
-            "Area":        {"select": {"name": area}},
-            "Type":        {"select": {"name": kind}},
-            "Status":      {"select": {"name": "Passing"}},
-            "Added In":    {"rich_text": rich_text(commit)},
-        })
-        added += 1
-    print(f"  Test Scenarios: {added} added, {len(existing)} already existed")
+        try:
+            create_page(db_id, {
+                "Test Name":   {"title": rich_text(name)},
+                "Description": {"rich_text": rich_text(desc)},
+                "Area":        {"select": {"name": area}},
+                "Type":        {"select": {"name": kind}},
+                "Status":      {"select": {"name": "Passing"}},
+                "Added In":    {"rich_text": rich_text(commit)},
+            })
+            _add(name)
+            added += 1
+        except Exception as exc:
+            _err(name, exc)
+            errors += 1
+    print(f"  → {added} added, {len(existing)} skipped, {errors} errors")
 
 
 # ── Reference links ───────────────────────────────────────────────────────────
@@ -720,17 +781,23 @@ REFERENCE_LINKS = [
 
 def sync_reference(db_id: str):
     existing = existing_titles(db_id)
-    added = 0
+    added = errors = 0
     for title, category, url in REFERENCE_LINKS:
         if title in existing:
+            _skip(title)
             continue
-        create_page(db_id, {
-            "Title":    {"title": rich_text(title)},
-            "Category": {"select": {"name": category}},
-            "URL":      {"url": url},
-        })
-        added += 1
-    print(f"  Reference: {added} added, {len(existing)} already existed")
+        try:
+            create_page(db_id, {
+                "Title":    {"title": rich_text(title)},
+                "Category": {"select": {"name": category}},
+                "URL":      {"url": url},
+            })
+            _add(title)
+            added += 1
+        except Exception as exc:
+            _err(title, exc)
+            errors += 1
+    print(f"  → {added} added, {len(existing)} skipped, {errors} errors")
 
 
 # ── Session Log ───────────────────────────────────────────────────────────────
@@ -816,38 +883,44 @@ SESSION_LOGS = [
 
 def sync_session_logs(db_id: str):
     existing = existing_titles(db_id)
-    added = 0
+    added = errors = 0
     for log in SESSION_LOGS:
         if log["title"] in existing:
+            _skip(log["title"])
             continue
-        children = [heading_block(2, "What was done")]
-        for item in log["done"]:
-            children.append(bullet_block(item))
-        if log["decisions"]:
-            children += [divider_block(), heading_block(2, "Key decisions")]
-            for item in log["decisions"]:
+        try:
+            children = [heading_block(2, "What was done")]
+            for item in log["done"]:
                 children.append(bullet_block(item))
-        if log["next"]:
-            children += [divider_block(), heading_block(2, "Next session")]
-            for item in log["next"]:
-                children.append(bullet_block(item))
-        if log["commits"]:
-            children += [divider_block(), heading_block(2, "Commits this session")]
-            for item in log["commits"]:
-                children.append(bullet_block(item))
-        if log["blockers"]:
-            children += [divider_block(), heading_block(2, "Open blockers")]
-            for item in log["blockers"]:
-                children.append(bullet_block(item))
-        create_page(db_id, {
-            "Session": {"title": rich_text(log["title"])},
-            "Date":    {"date": {"start": log["date"]}},
-            "Agent":   {"select": {"name": log["agent"]}},
-            "Branch":  {"rich_text": rich_text(BRANCH)},
-            "Status":  {"select": {"name": log["status"]}},
-        }, children=children)
-        added += 1
-    print(f"  Session Log: {added} added, {len(existing)} already existed")
+            if log["decisions"]:
+                children += [divider_block(), heading_block(2, "Key decisions")]
+                for item in log["decisions"]:
+                    children.append(bullet_block(item))
+            if log["next"]:
+                children += [divider_block(), heading_block(2, "Next session")]
+                for item in log["next"]:
+                    children.append(bullet_block(item))
+            if log["commits"]:
+                children += [divider_block(), heading_block(2, "Commits this session")]
+                for item in log["commits"]:
+                    children.append(bullet_block(item))
+            if log["blockers"]:
+                children += [divider_block(), heading_block(2, "Open blockers")]
+                for item in log["blockers"]:
+                    children.append(bullet_block(item))
+            create_page(db_id, {
+                "Session": {"title": rich_text(log["title"])},
+                "Date":    {"date": {"start": log["date"]}},
+                "Agent":   {"select": {"name": log["agent"]}},
+                "Branch":  {"rich_text": rich_text(BRANCH)},
+                "Status":  {"select": {"name": log["status"]}},
+            }, children=children)
+            _add(log["title"])
+            added += 1
+        except Exception as exc:
+            _err(log["title"][:60], exc)
+            errors += 1
+    print(f"  → {added} added, {len(existing)} skipped, {errors} errors")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -855,7 +928,9 @@ def sync_session_logs(db_id: str):
 def main():
     print(f"\nHorizon Search — Notion Full Sync")
     print(f"Root page: {ROOT_PAGE_ID}")
-    print(f"Date: {now_iso()}\n")
+    print(f"Date:      {now_iso()}")
+    check_git_version()
+    print()
 
     print("[1/6] Decisions database...")
     decisions_id, _ = get_or_create_database(ROOT_PAGE_ID, "Decisions", DECISIONS_PROPS,
