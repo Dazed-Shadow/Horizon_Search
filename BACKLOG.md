@@ -38,14 +38,36 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-05-24] LLC identity — data analyst pin + mission tagline
+**Type:** Feature
+**Priority:** High — COMPLETE
+**Tags:** #frontend #ux #outreach
+**Detail:** JR registered a veteran-owned data analytics LLC. Three identity changes shipped:
+1. **Tagline** "Matching services to those who serve" — now in Navbar subtitle (every page), footer (every page), and Mission page About section.
+2. **Data analyst pin** — "Data Analytics" + "Veteran-Owned" specialty badges in the Mission page About section. Same pill/badge visual language as TrailblazerCard tags and testimonial cert badges. Array-driven so JR can add "SDVOSB" / "SAM.gov Registered" later.
+3. **Practitioner paragraph** — About section copy updated: "built by a veteran-owned data analytics firm walking the same path — registered in SAM.gov and pursuing the same opportunities this tool helps surface."
+**Resolution:** Committed 2026-05-24. Files: `testimonials.js`, `MissionPage.jsx`, `Navbar.jsx`, `App.jsx`.
+
 ## [2026-05-22] Brand identity — logo + company name
 **Type:** Feature
-**Priority:** Medium — OPEN
+**Priority:** Medium — OPEN (partial)
 **Tags:** #frontend #ux #docs
-**Detail:** Two related items tracked together:
-- **Logo**: A proper mark for Horizon Search to replace the current SVG placeholder in the Mission page About section and the Navbar icon. Consider a horizon line / star / compass motif that resonates with a veteran audience. Placeholder is in `MissionPage.jsx` (the 80×80 brand-900 square) and `Navbar.jsx` (the scales SVG).
-- **Business/company name**: The site owner intends to walk through the same SAM.gov registration process featured on the Start Here page — registering their own veteran LLC. The company name will feed into the founderNote in `frontend/src/data/testimonials.js` (`name` and `role` fields) and the About section of the Mission page. Until then, "Horizon Search" is the working name.
-- **Next steps**: Once business name is decided, update `testimonials.js` founderNote, Mission page About section, and footer in `App.jsx`.
+**Detail:** Two items remain:
+- **Logo**: A proper mark for Horizon Search to replace the current SVG placeholder in the Mission page About section (80×80 brand-900 square) and `Navbar.jsx` (scales SVG). Consider horizon line / star / compass motif.
+- **Company name**: LLC is registered but official name not yet set in the site. When decided, update `founderNote.name` in `testimonials.js`, Mission page About `<h2>`, and footer in `App.jsx`.
+- **Next steps**: Once company name is decided, do a single pass on `testimonials.js` (`name` field) and optionally add "SAM.gov Registered" to `founderNote.specialties`.
+
+---
+
+## [2026-05-24] Notion keys — ACTION REQUIRED
+**Type:** Enhancement
+**Priority:** High — BLOCKED (waiting on JR)
+**Tags:** #docs
+**Detail:** `scripts/notion_sync.py` is ready and covers the full project state. Blocked on two keys missing from `backend/.env`:
+1. `NOTION_API_KEY=<integration token from notion.so/my-integrations>`
+2. `NOTION_ROOT_PAGE_ID=<32-char hex ID from root page URL>`
+Then run: `python scripts/notion_sync.py` from the repo root.
+Once run, all 6 databases (Decisions, Backlog, Session Log, Reference, Changes, Test Scenarios) will be seeded and DB IDs written back to `.env` automatically.
 
 ---
 

@@ -51,4 +51,7 @@ export const founderNote = {
   // Replace the line above with your own message before distributing the link.
   name: "Horizon Search",
   role: "Built for the veteran business community",
+  tagline: "Matching services to those who serve",
+  // Add more as certifications are obtained: "SDVOSB", "SAM.gov Registered", etc.
+  specialties: ["Data Analytics", "Veteran-Owned"],
 };

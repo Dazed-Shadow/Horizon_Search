@@ -29,7 +29,7 @@ export default function Navbar() {
             </div>
             <div className="leading-tight">
               <p className="font-bold text-base tracking-tight">Horizon Search</p>
-              <p className="text-[10px] text-brand-200">Veteran Contract Intelligence</p>
+              <p className="text-[10px] text-brand-200">Matching services to those who serve</p>
             </div>
           </NavLink>
 

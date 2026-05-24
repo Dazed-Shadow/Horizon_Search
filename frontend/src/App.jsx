@@ -21,9 +21,8 @@ export default function App() {
         <Route path="/primer" element={<ContractPrimerPage />} />
       </Routes>
       <footer className="border-t border-gray-200 mt-auto py-5 text-center text-xs text-gray-400">
-        Horizon Search · Contract data sourced from{" "}
+        Horizon Search · Matching services to those who serve · Contract data sourced from{" "}
         <a href="https://sam.gov" target="_blank" rel="noopener noreferrer" className="underline">SAM.gov</a>
-        {" "}· Built for veteran-owned businesses
       </footer>
     </div>
   );

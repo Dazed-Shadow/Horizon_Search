@@ -150,14 +150,32 @@ export default function MissionPage() {
             <div className="flex-1">
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">About the builder</p>
               <h2 className="text-2xl font-bold text-gray-900 mb-1">{founderNote.name}</h2>
-              <p className="text-brand-600 text-sm font-medium mb-4">{founderNote.role}</p>
+              <p className="text-brand-600 text-sm font-medium mb-1">{founderNote.role}</p>
+              {founderNote.tagline && (
+                <p className="text-gray-400 text-xs italic mb-3">{founderNote.tagline}</p>
+              )}
+              {founderNote.specialties?.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {founderNote.specialties.map(spec => (
+                    <span key={spec} className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                      spec === "Data Analytics"
+                        ? "bg-blue-50 text-blue-700 border-blue-200"
+                        : spec === "Veteran-Owned"
+                        ? "bg-green-50 text-green-700 border-green-200"
+                        : "bg-gray-100 text-gray-600 border-gray-200"
+                    }`}>
+                      {spec}
+                    </span>
+                  ))}
+                </div>
+              )}
               <blockquote className="text-gray-700 text-base leading-relaxed border-l-4 border-brand-200 pl-4 mb-4 italic">
                 "{founderNote.message}"
               </blockquote>
               <p className="text-sm text-gray-500 leading-relaxed">
-                Horizon Search is free to use, requires no account, and never tracks your searches.
-                It is built on top of the public SAM.gov API and reflects live data directly from the
-                federal government's contract database.
+                Horizon Search is built by a veteran-owned data analytics firm walking the same path —
+                registered in SAM.gov and pursuing the same opportunities this tool helps surface.
+                Free to use, no account required, no tracking.
               </p>
             </div>
           </div>
