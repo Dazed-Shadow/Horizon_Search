@@ -14,6 +14,7 @@ Requirements in backend/.env:
     NOTION_ROOT_PAGE_ID=<32-char hex ID of the root page>
 """
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -331,181 +332,107 @@ def sync_decisions(db_id: str):
     print(f"  → {added} added, {len(existing)} skipped, {errors} errors")
 
 
-# ── Backlog ───────────────────────────────────────────────────────────────────
+# ── Backlog — parsed live from BACKLOG.md ─────────────────────────────────────
+#
+# No hardcoded list. Every time the sync runs it reads BACKLOG.md directly.
+# To add a new entry to Notion: add it to BACKLOG.md using the standard template,
+# then run `python scripts/notion_sync.py` — it will be picked up automatically.
 
-BACKLOG_ITEMS = [
-    # ── OPEN (2026-05-24) ──
-    {
-        "title": "NAICS Activity Insights Phase 3 — persistent cache, dollar trends, multi-NAICS comparison",
-        "type": "Feature", "priority": "Low", "status": "Open",
-        "tags": ["#backend", "#frontend", "#api"], "date": "2026-05-24",
-        "detail": "Deferred from Phase 2. Items: SQLite persistent cache to survive restarts; award dollar-amount trend line (parse awardAmount from historical data); compare multiple NAICS codes side-by-side.",
-    },
-    {
-        "title": "Notion keys — ACTION REQUIRED",
-        "type": "Enhancement", "priority": "High", "status": "Pending",
-        "tags": ["#docs"], "date": "2026-05-24",
-        "detail": "notion_sync.py is ready. Requires NOTION_API_KEY and NOTION_ROOT_PAGE_ID in backend/.env. Then run: python scripts/notion_sync.py from repo root. Script is idempotent — safe to re-run; skips existing titles.",
-    },
-    # ── COMPLETE (2026-05-24) ──
-    {
-        "title": "NAICS Activity Insights Phase 2 — FY forecast, agency breakdown, best months to bid",
-        "type": "Feature", "priority": "Medium", "status": "Complete",
-        "tags": ["#backend", "#frontend", "#api"], "date": "2026-05-24",
-        "detail": "Three new insight panels below the Phase 1 bar chart: (1) FY Forecast — amber callout during Jun–Sep surge window with live days-remaining count, gray mid-year/Q1; (2) Agency Breakdown — top 15 federal agencies queried via organizationName filter, indigo bar chart of top 5 active buyers; (3) Best Months to Bid — peak months as pill chips, 2-sentence recommendation, 'begin preparing by [month]' cue. 27 SAM.gov calls per cold load (12 monthly + 15 agency), all Semaphore(3)-throttled and 24h cached. 10 new tests; 51 total.",
-        "commit": "c9fceb0",
-    },
-    {
-        "title": "NAICS Activity Insights Phase 1 — 12-month historical counts + CSS bar chart",
-        "type": "Feature", "priority": "High", "status": "Complete",
-        "tags": ["#backend", "#frontend", "#api"], "date": "2026-05-24",
-        "detail": "GET /api/insights/naics-activity?naics_code=&set_aside=&months= — 12 SAM.gov calls (one per month), asyncio.gather with Semaphore(3), 24h cache historical / 5m current. NaicsInsightPanel — full-width panel above results with CSS-only bar chart, 3-stat summary, server-generated plain-language interpretation. 'View 12-month activity' button in FilterPanel NAICS section. 8 new tests; 41 total.",
-        "commit": "698cc75",
-    },
-    {
-        "title": "LLC identity — Shade of Design LLC, tagline, accurate specialties",
-        "type": "Feature", "priority": "High", "status": "Complete",
-        "tags": ["#frontend", "#ux", "#outreach"], "date": "2026-05-24",
-        "detail": "Shade of Design LLC (NJ, design & data analytics). Jon is not a veteran — no veteran-ownership claims anywhere. founderNote.name → 'Shade of Design LLC'; role → 'Design & Data Analytics · Building tools for veteran entrepreneurs'; tagline → 'Matching services to those who serve'. Specialties: Data Analytics (blue) + Small Business (grey). 'Veteran-Owned' badge explicitly excluded. Tagline updated in Navbar, footer, Mission page.",
-        "commit": "8afab9d",
-    },
-    {
-        "title": "Brand color palette — missing brand-200/300/400/800 stops causing invisible text",
-        "type": "Bug", "priority": "High", "status": "Fixed",
-        "tags": ["#frontend", "#bug", "#ux"], "date": "2026-05-24",
-        "detail": "brand-200/300/400/800 were used in 10+ components but not defined in tailwind.config.js. Tailwind generated no CSS for those classes — text fell back to inherited color (black on dark backgrounds). Fixed by adding all four missing stops to tailwind.config.js using standard indigo scale.",
-        "commit": "525a077",
-    },
-    # ── OPEN (pre-2026-05-24) ──
-    {
-        "title": "Brand identity — logo + company name",
-        "type": "Feature", "priority": "Medium", "status": "Open",
-        "tags": ["#frontend", "#ux", "#docs"], "date": "2026-05-22",
-        "detail": "Logo placeholder: 80×80 brand-900 square in MissionPage.jsx and scales SVG in Navbar.jsx. Owner will register veteran LLC and feed company name into testimonials.js founderNote and Mission page About section.",
-    },
-    {
-        "title": "Trailblazers content — articles URL verification",
-        "type": "Enhancement", "priority": "Medium", "status": "Open",
-        "tags": ["#frontend", "#docs", "#outreach"], "date": "2026-05-22",
-        "detail": "Articles in articles.json with verify:true need real direct URLs. Sources: Inc. Vet 100, Forbes veteran founders, HBR military leadership, Task & Purpose SDVOSB coverage, WATM/Adam Driver AITAF, Military Times/Mark Geist.",
-    },
-    {
-        "title": "Match Score personalization",
-        "type": "Feature", "priority": "Medium", "status": "Open",
-        "tags": ["#frontend", "#ux"], "date": "2026-05-22",
-        "detail": "Post-distribution, week 1. 60-second localStorage profile wizard + match badge on cards. Opus recommendation #5.",
-    },
-    {
-        "title": "Real testimonials from SBA veteran success stories",
-        "type": "Enhancement", "priority": "Medium", "status": "Open",
-        "tags": ["#frontend", "#outreach"], "date": "2026-05-22",
-        "detail": "JR will source 3 real veteran quotes from sba.gov success stories by weekend. Replace placeholders in testimonials.js. sourceUrl field auto-activates 'Read their story' link.",
-    },
-    {
-        "title": "Web deployment / easier access",
-        "type": "Feature", "priority": "High", "status": "Open",
-        "tags": ["#deploy"], "date": "2026-05-10",
-        "detail": "Railway is configured. Needs PR to main for Railway to deploy latest features. Branch: claude/military-contract-search-tool-9hm2D.",
-    },
-    # ── COMPLETE ──
-    {
-        "title": "Plain-language contract translator toggle on cards",
-        "type": "Feature", "priority": "High", "status": "Complete",
-        "tags": ["#frontend", "#ux"], "date": "2026-05-22",
-        "detail": "SHIPPED. 'What does this mean? ▼' toggle on ContractCard. SET_ASIDE_PLAIN and SOLICITATION_TYPE_PLAIN maps in constants.js.",
-        "commit": "5ca90a9",
-    },
-    {
-        "title": "Start Here guided onboarding page",
-        "type": "Feature", "priority": "High", "status": "Complete",
-        "tags": ["#frontend", "#ux", "#outreach"], "date": "2026-05-22",
-        "detail": "SHIPPED. 4-step journey at /start. EIN prerequisite card. NAICS code directory with category accordion and search filter. FAQ accordion per step.",
-        "commit": "66ce696",
-    },
-    {
-        "title": "Testimonials + Share button",
-        "type": "Feature", "priority": "High", "status": "Complete",
-        "tags": ["#frontend", "#ux", "#outreach"], "date": "2026-05-22",
-        "detail": "SHIPPED. TestimonialStrip on Mission page. ShareButton on search hero with Web Share API + clipboard fallback.",
-        "commit": "dcbfe69",
-    },
-    {
-        "title": "Mission hero with live stats ticker",
-        "type": "Feature", "priority": "High", "status": "Complete",
-        "tags": ["#frontend", "#backend", "#api"], "date": "2026-05-22",
-        "detail": "SHIPPED. /api/contracts/stats endpoint (1hr cache). SDVOSB/VOSB/SBA counts displayed in search hero.",
-        "commit": "e834300",
-    },
-    {
-        "title": "Mission page",
-        "type": "Feature", "priority": "High", "status": "Complete",
-        "tags": ["#frontend", "#ux", "#outreach"], "date": "2026-05-22",
-        "detail": "SHIPPED. /mission — hero with ShareButton, 3 values cards, founder note, full testimonial card grid, CTAs.",
-        "commit": "e834300",
-    },
-    {
-        "title": "Trailblazers page — veteran entrepreneur profiles",
-        "type": "Feature", "priority": "High", "status": "Complete",
-        "tags": ["#frontend", "#ux", "#outreach"], "date": "2026-05-22",
-        "detail": "SHIPPED. /trailblazers — 5 figures (Fred Smith, Jocko Willink, David Goggins, Mark Oz Geist, Adam Driver). Slide-in drawer with bio/resources/articles. ArticleList with bucket filter. Deep-link via ?figure= param.",
-        "commit": "69e4d73",
-    },
-    {
-        "title": "Contract detail drawer — slide-in animation, focus trap, deep-link",
-        "type": "Enhancement", "priority": "Low", "status": "Complete",
-        "tags": ["#frontend", "#ux"], "date": "2026-05-22",
-        "detail": "SHIPPED. CSS keyframe slide-in-right. Tab focus trap. ?notice= deep-link. /api/contracts/{notice_id} endpoint.",
-        "commit": "1bdea9c",
-    },
-    {
-        "title": "Bookmark / watch list",
-        "type": "Feature", "priority": "Medium", "status": "Complete",
-        "tags": ["#frontend"], "date": "2026-05-19",
-        "detail": "SHIPPED. useBookmarks hook. BookmarksPanel slide-in. Full contract snapshot in localStorage key horizon_search.bookmarks.v1.",
-        "commit": "432bf71",
-    },
-    {
-        "title": "Sort controls (deadline, posted date, value)",
-        "type": "Enhancement", "priority": "High", "status": "Complete",
-        "tags": ["#frontend", "#ux"], "date": "2026-05-19",
-        "detail": "SHIPPED. sortBy state in useContracts. sortedContracts useMemo. Sort select in ContractList.",
-        "commit": "432bf71",
-    },
-    {
-        "title": "Deadline urgency indicators on cards",
-        "type": "Enhancement", "priority": "High", "status": "Complete",
-        "tags": ["#frontend", "#ux"], "date": "2026-05-19",
-        "detail": "SHIPPED. deadlineStatus() extended with urgency tier. Full-width color strip above card content.",
-        "commit": "432bf71",
-    },
-    {
-        "title": "VSB code may not match SAM.gov VOSB parameter",
-        "type": "Bug", "priority": "Medium", "status": "Fixed",
-        "tags": ["#api", "#bug", "#frontend"], "date": "2026-05-15",
-        "detail": "Fixed. QUICK_FILTERS in SearchPage.jsx changed from set_aside: 'VSB' to set_aside: 'VOSB'.",
-        "commit": "7213481",
-    },
-    {
-        "title": "API calls getting blocked after too many searches (rate limit)",
-        "type": "Bug", "priority": "High", "status": "Fixed",
-        "tags": ["#api", "#perf", "#backend", "#frontend"], "date": "2026-05-10",
-        "detail": "Fixed. 5-min TTL cache in sam_gov.py. 429 re-raised as HTTPException(429). Amber rate-limit UI in ContractList.",
-        "commit": "de0f859",
-    },
-    {
-        "title": "No keyword + SDVOSBC filter returned 500",
-        "type": "Bug", "priority": "High", "status": "Fixed",
-        "tags": ["#api", "#bug", "#backend"], "date": "2026-05-10",
-        "detail": "Fixed. _str_or_none() helper coerces int naicsCode to str. placeOfPerformance as plain string handled.",
-        "commit": "f00295e",
-    },
-]
+_VALID_TAGS = {
+    "#api", "#backend", "#frontend", "#ux", "#perf",
+    "#deploy", "#auth", "#docs", "#outreach",
+}
 
+_TYPE_MAP = {"bug": "Bug", "feature": "Feature", "enhancement": "Enhancement", "idea": "Idea"}
+_PRIORITY_MAP = {"high": "High", "medium": "Medium", "low": "Low"}
+
+
+def parse_backlog_md() -> list[dict]:
+    md_path = Path(__file__).parent.parent / "BACKLOG.md"
+    text = md_path.read_text(encoding="utf-8")
+
+    header_re = re.compile(r'^## \[(\d{4}-\d{2}-\d{2})\] (.+)$', re.MULTILINE)
+    matches = list(header_re.finditer(text))
+    items = []
+
+    for i, m in enumerate(matches):
+        date  = m.group(1)
+        title = m.group(2).strip()
+        end   = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        body  = text[m.end():end]
+
+        # Skip structural headers (no **Type:** field)
+        type_m = re.search(r'\*\*Type:\*\*\s*([^\n]+)', body)
+        if not type_m:
+            continue
+
+        # Type — first word only, normalised
+        raw_type  = type_m.group(1).strip().split()[0].rstrip('|').lower()
+        item_type = _TYPE_MAP.get(raw_type, "Feature")
+
+        # Priority and Status — "High — COMPLETE", "Medium — OPEN", "High — BLOCKED (...)"
+        pri_m       = re.search(r'\*\*Priority:\*\*\s*([^\n]+)', body)
+        raw_pri     = pri_m.group(1).strip() if pri_m else "Medium"
+        parts       = [p.strip() for p in raw_pri.split("—", 1)]
+        priority    = _PRIORITY_MAP.get(parts[0].split()[0].lower(), "Medium")
+        suffix      = parts[1].upper() if len(parts) > 1 else ""
+
+        if "COMPLETE" in suffix or "FIXED" in suffix:
+            status = "Fixed" if item_type == "Bug" else "Complete"
+        elif "BLOCKED" in suffix or "ACTION" in suffix:
+            status = "Pending"
+        elif "IN PROGRESS" in suffix:
+            status = "In Progress"
+        else:
+            status = "Open"
+
+        # Tags — keep only values in the valid set
+        tags_m = re.search(r'\*\*Tags:\*\*\s*([^\n]+)', body)
+        tags   = []
+        if tags_m:
+            tags = [t for t in tags_m.group(1).split() if t in _VALID_TAGS]
+
+        # Detail — everything from **Detail:** to the next **field or end of section
+        det_m  = re.search(r'\*\*Detail:\*\*\s*([\s\S]+?)(?=\n\*\*[A-Z]|\Z)', body)
+        detail = det_m.group(1).strip() if det_m else ""
+        # Strip backticks and bold markers for cleaner plain text in Notion
+        detail = re.sub(r'`([^`]+)`', r'\1', detail)
+        detail = re.sub(r'\*\*([^*]+)\*\*', r'\1', detail)
+        detail = detail[:2000]
+
+        # Commit hash — first 7-char hex string in **Resolution:** line
+        res_m  = re.search(r'\*\*Resolution:\*\*\s*([^\n]+)', body)
+        commit = ""
+        if res_m:
+            h = re.search(r'\b([0-9a-f]{7,40})\b', res_m.group(1), re.I)
+            if h:
+                commit = h.group(1)[:7]
+
+        entry = {"title": title, "date": date, "type": item_type,
+                 "priority": priority, "status": status, "tags": tags, "detail": detail}
+        if commit:
+            entry["commit"] = commit
+        items.append(entry)
+
+    print(f"  Parsed {len(items)} items from BACKLOG.md")
+    return items
+
+
+# Legacy alias kept so the variable name is recognisable in sync_backlog below
+def _backlog_items() -> list[dict]:
+    return parse_backlog_md()
+
+
+# ── (removed static BACKLOG_ITEMS — source of truth is now BACKLOG.md) ────────
+# Everything below this line that once referenced BACKLOG_ITEMS now calls
+# parse_backlog_md() at sync time so Notion always reflects the markdown file.
 
 def sync_backlog(db_id: str):
+    """Read BACKLOG.md directly — no hardcoded list. Add any entry not yet in Notion."""
+    items    = parse_backlog_md()
     existing = existing_titles(db_id)
     added = errors = 0
-    for item in BACKLOG_ITEMS:
+    for item in items:
         if item["title"] in existing:
             _skip(item["title"][:80])
             continue
@@ -520,7 +447,7 @@ def sync_backlog(db_id: str):
             }
             if "commit" in item:
                 props["Commit"] = {"rich_text": rich_text(item["commit"])}
-            children = [paragraph_block(item["detail"])] if "detail" in item else None
+            children = [paragraph_block(item["detail"])] if item.get("detail") else None
             create_page(db_id, props, children=children)
             _add(f"[{item['status']}] {item['title'][:70]}")
             added += 1
