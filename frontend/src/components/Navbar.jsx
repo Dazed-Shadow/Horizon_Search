@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 
 const NAV_LINKS = [
   { to: "/",              label: "Search Contracts" },
+  { to: "/insights",      label: "Market Intel" },
   { to: "/mission",       label: "Mission" },
   { to: "/trailblazers",  label: "Trailblazers" },
   { to: "/licensing",     label: "Licensing & Certs" },

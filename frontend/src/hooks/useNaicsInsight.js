@@ -16,11 +16,17 @@ export function useNaicsInsight() {
     if (setAside) params.set("set_aside", setAside);
     try {
       const res = await fetch(`/api/insights/naics-activity?${params}`);
+      const text = await res.text();
+      let body;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        throw new Error("Backend server is not responding — make sure it is running on port 8000.");
+      }
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
         throw new Error(body.detail || `Error ${res.status}`);
       }
-      setData(await res.json());
+      setData(body);
       setActiveKey(key);
     } catch (err) {
       setError(err.message);
