@@ -68,7 +68,7 @@ export default function NaicsInsightPanel({ data, loading, error, onDismiss, nai
       {loading && (
         <div className="px-5 py-10 text-center">
           <div className="inline-block w-6 h-6 border-2 border-brand-400 border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-sm text-gray-600 font-medium">Fetching 12 months of SAM.gov data…</p>
+          <p className="text-sm text-gray-600 font-medium">Loading 24 months of SAM.gov data…</p>
           <p className="text-xs text-gray-400 mt-1">Includes per-agency breakdown — results cached after first load</p>
         </div>
       )}
