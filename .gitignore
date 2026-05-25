@@ -27,5 +27,5 @@ scripts/backups/
 # Claude Code internal working directory
 .claude/
 
-# Local research scripts and data — never commit API results or CSVs
-research/
+# Research data outputs (CSVs, raw API results) — scripts are tracked, data is not
+research/data/
