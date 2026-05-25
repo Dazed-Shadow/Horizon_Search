@@ -1,29 +1,34 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import NaicsInsightPanel from "../components/NaicsInsightPanel";
 import { useNaicsInsight } from "../hooks/useNaicsInsight";
-import { COMMON_NAICS, SET_ASIDES } from "../utils/constants";
+import { COMMON_NAICS } from "../utils/constants";
 
 const NAICS_BY_CATEGORY = COMMON_NAICS.reduce((acc, n) => {
   (acc[n.category] = acc[n.category] || []).push(n);
   return acc;
 }, {});
 
-const SET_ASIDES_VETERAN = SET_ASIDES.filter(s => s.group === "Veteran");
-const SET_ASIDES_OTHER = SET_ASIDES.filter(s => s.group !== "Veteran");
-
 export default function InsightsPage() {
   const [selectedCode, setSelectedCode] = useState("");
   const [customCode, setCustomCode] = useState("");
-  const [setAside, setSetAside] = useState("");
+  const [snapshotDate, setSnapshotDate] = useState(null);
   const { data, loading, error, fetchInsight, clear } = useNaicsInsight();
+
+  // Load snapshot metadata once to show the "data as of" date
+  useEffect(() => {
+    fetch("/naics-insights.json")
+      .then(r => r.json())
+      .then(sd => setSnapshotDate(sd.generated_at ?? null))
+      .catch(() => {});
+  }, []);
 
   const activeCode = customCode.trim() || selectedCode;
   const canLoad = activeCode.length === 6;
 
   function handleLoad() {
     if (!canLoad) return;
-    fetchInsight(activeCode, setAside || null);
+    fetchInsight(activeCode);
   }
 
   function handleSelectCode(code) {
@@ -35,11 +40,6 @@ export default function InsightsPage() {
   function handleCustomCode(val) {
     setCustomCode(val.replace(/\D/g, "").slice(0, 6));
     setSelectedCode("");
-    clear();
-  }
-
-  function handleSetAside(val) {
-    setSetAside(val);
     clear();
   }
 
@@ -58,10 +58,15 @@ export default function InsightsPage() {
             NAICS Activity Insights
           </h1>
           <p className="text-brand-300 text-sm max-w-xl mx-auto leading-relaxed">
-            Research 12 months of federal contract posting history for any NAICS code — before you
+            Research 24 months of federal contract posting history for any NAICS code — before you
             commit to a certification or start writing a proposal. See which agencies are buying,
             when they buy, and how active your market has been.
           </p>
+          {snapshotDate && (
+            <p className="text-brand-400 text-xs mt-3">
+              Market snapshot · Data as of {snapshotDate} · Refreshed periodically
+            </p>
+          )}
         </div>
       </div>
 
@@ -98,8 +103,11 @@ export default function InsightsPage() {
           </div>
 
           {/* Custom code input */}
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Enter any 6-digit NAICS code</label>
+          <div className="mb-5">
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Enter any 6-digit NAICS code
+              <span className="text-gray-400 font-normal ml-1">(requires backend for codes outside the 42 common codes)</span>
+            </label>
             <input
               type="text"
               inputMode="numeric"
@@ -109,30 +117,6 @@ export default function InsightsPage() {
               onChange={e => handleCustomCode(e.target.value)}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
-          </div>
-
-          {/* Set-aside filter */}
-          <div className="mb-5">
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Filter by set-aside <span className="text-gray-400 font-normal">(optional — shows only contracts with this designation)</span>
-            </label>
-            <select
-              value={setAside}
-              onChange={e => handleSetAside(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
-            >
-              <option value="">All contracts (no set-aside filter)</option>
-              <optgroup label="Veteran Programs">
-                {SET_ASIDES_VETERAN.map(s => (
-                  <option key={s.code} value={s.code}>{s.label}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Other Set-Asides">
-                {SET_ASIDES_OTHER.map(s => (
-                  <option key={s.code} value={s.code}>{s.label}</option>
-                ))}
-              </optgroup>
-            </select>
           </div>
 
           <button
@@ -181,7 +165,9 @@ export default function InsightsPage() {
                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <p className="text-sm font-medium">Select a NAICS code above to load activity data</p>
-            <p className="text-xs mt-1">First load fetches 27 SAM.gov data points — results are cached for 24 hours</p>
+            <p className="text-xs mt-1">
+              Snapshot data for 42 common codes loads instantly · No backend required
+            </p>
           </div>
         )}
 
