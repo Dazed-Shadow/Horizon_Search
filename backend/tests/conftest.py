@@ -1,9 +1,14 @@
 import os
+import tempfile
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 
 os.environ.setdefault("SAM_GOV_API_KEY", "TEST_KEY")
+
+# Point the insights DB at a temp file so tests never touch the real insights.db
+_tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+os.environ["INSIGHTS_DB_PATH"] = _tmp_db.name
 
 from main import app  # noqa: E402
 
@@ -18,11 +23,15 @@ async def client():
 
 @pytest.fixture(autouse=True)
 def clear_sam_cache():
-    """Wipe all in-memory caches before every test so tests don't bleed."""
+    """Wipe all caches (memory + SQLite) before every test so tests don't bleed."""
     from services.sam_gov import _response_cache
     _response_cache.clear()
     from services.insights import _insight_cache
     _insight_cache.clear()
+    from services.insights_db import _db
+    _db().execute("DELETE FROM monthly_counts")
+    _db().execute("DELETE FROM agency_counts")
+    _db().commit()
     yield
     _response_cache.clear()
     _insight_cache.clear()

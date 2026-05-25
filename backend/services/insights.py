@@ -1,15 +1,16 @@
 """
-NAICS Activity Insights — 12-month historical contract count aggregation.
+NAICS Activity Insights — historical contract count aggregation.
 
-For a given NAICS code + optional set-aside filter, queries SAM.gov for the
-number of contracts posted each month for the past N months, plus per-agency
-breakdowns across 15 top federal buyers. Results are cached aggressively
-(24h for complete months/agencies, 5m for the current partial month) to
-stay well within SAM.gov's free-tier rate limit.
+Cache hierarchy:
+  L1: in-memory dict  (process lifetime, microsecond reads)
+  L2: SQLite file     (persistent across restarts, millisecond reads)
+  L3: SAM.gov API     (network, rate-limited — only on L1+L2 miss)
 
-Rate-limit math: 12 month calls + 15 agency calls = 27 API calls per first
-request. With 24h caching, every subsequent request costs zero calls.
-asyncio.Semaphore(3) prevents burst throttling on the first cold load.
+Cold-load cost for a new NAICS code (24-month window, no cache):
+  24 monthly calls + 15 agency calls = 39 SAM.gov calls, ~15–20 seconds.
+  Every subsequent load (even after restart) costs zero API calls until TTL expires.
+
+asyncio.Semaphore(3) prevents burst throttling on cold loads.
 """
 import asyncio
 import httpx
@@ -24,15 +25,15 @@ from models.insights import (
     BidTimingAdvice, FYForecast, AgencyCount, AgencyBreakdown,
 )
 from services.sam_gov import SAM_BASE, SET_ASIDE_LABELS
+import services.insights_db as db
 
 # ---------------------------------------------------------------------------
-# In-memory cache — { key: (monotonic_ts, count) }
+# L1 in-memory cache — { key: (monotonic_ts, count) }
 # Keys: "insight:<naics>:<set_aside>:<YYYY-MM>"  (monthly)
-#       "agency:<naics>:<set_aside>:<agency_name>"  (agency totals)
 # ---------------------------------------------------------------------------
 _insight_cache: dict[str, tuple[float, int]] = {}
-_TTL_HISTORICAL = 86400  # 24h — completed months / agency totals are stable
-_TTL_CURRENT = 300       # 5m  — current month is still accumulating
+_TTL_HISTORICAL = db.TTL_HISTORICAL
+_TTL_CURRENT    = db.TTL_CURRENT
 
 MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -108,11 +109,20 @@ async def _fetch_month_count(
     is_current = (year == now.year and month == now.month)
     ttl = _TTL_CURRENT if is_current else _TTL_HISTORICAL
     key = _cache_key(naics, set_aside, f"{year:04d}-{month:02d}")
+    sa = set_aside or ""
 
+    # L1: in-memory
     cached = _cache_get(key, ttl)
     if cached is not None:
         return cached
 
+    # L2: SQLite
+    db_val = db.get_monthly(naics, sa, year, month, ttl)
+    if db_val is not None:
+        _cache_set(key, db_val)
+        return db_val
+
+    # L3: SAM.gov
     _, last_day = monthrange(year, month)
     fmt = "%m/%d/%Y"
     params: dict = {
@@ -136,6 +146,7 @@ async def _fetch_month_count(
             count = 0
 
     _cache_set(key, count)
+    db.set_monthly(naics, sa, year, month, count)
     return count
 
 
@@ -368,27 +379,36 @@ def _generate_interpretation(
 async def get_naics_activity(
     naics_code: str,
     set_aside: Optional[str] = None,
-    lookback_months: int = 12,
+    lookback_months: int = 24,
 ) -> NaicsInsightResponse:
     api_key = os.getenv("SAM_GOV_API_KEY", "")
     set_aside_label = SET_ASIDE_LABELS.get(set_aside) if set_aside else None
     month_pairs = _build_month_sequence(lookback_months)
+    sa = set_aside or ""
     now = datetime.utcnow()
 
     sem = asyncio.Semaphore(3)
+
+    # Check bulk agency SQLite cache first — skips 15 API calls if fresh
+    cached_agencies = db.get_agencies(naics_code, sa)
+
     async with httpx.AsyncClient(timeout=20) as client:
         month_tasks = [
             _fetch_month_count(naics_code, set_aside, y, m, api_key, client, sem)
             for y, m in month_pairs
         ]
-        agency_tasks = [
-            _fetch_agency_count(naics_code, set_aside, agency, api_key, client, sem)
-            for agency in TOP_AGENCIES
-        ]
-        all_results = await asyncio.gather(*month_tasks, *agency_tasks)
-
-    counts = all_results[:len(month_pairs)]
-    agency_results = list(all_results[len(month_pairs):])
+        if cached_agencies is None:
+            agency_tasks = [
+                _fetch_agency_count(naics_code, set_aside, agency, api_key, client, sem)
+                for agency in TOP_AGENCIES
+            ]
+            all_results = await asyncio.gather(*month_tasks, *agency_tasks)
+            counts = all_results[:len(month_pairs)]
+            agency_results = list(all_results[len(month_pairs):])
+            db.set_agencies(naics_code, sa, agency_results)
+        else:
+            counts = await asyncio.gather(*month_tasks)
+            agency_results = cached_agencies
 
     months: list[MonthlyCount] = [
         MonthlyCount(

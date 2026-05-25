@@ -15,7 +15,7 @@ router = APIRouter(prefix="/insights", tags=["insights"])
 async def naics_activity(
     naics_code: str = Query(..., description="6-digit NAICS code"),
     set_aside: Optional[str] = Query(default=None, description="Set-aside type code (e.g. SDVOSBC)"),
-    months: int = Query(default=12, ge=3, le=24, description="Months to look back (3–24)"),
+    months: int = Query(default=24, ge=3, le=24, description="Months to look back (3–24)"),
 ):
     """
     Return monthly contract-posting counts for a NAICS code over the past N months.

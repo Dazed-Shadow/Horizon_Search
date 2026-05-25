@@ -31,9 +31,9 @@ def _all_months_respond(mock, total: int):
 @pytest.mark.asyncio
 @respx.mock
 async def test_insight_endpoint_basic(client):
-    """Endpoint returns 12 MonthlyCount objects for a valid NAICS code."""
+    """Endpoint returns the requested number of MonthlyCount objects."""
     _all_months_respond(respx, 5)
-    resp = await client.get("/api/insights/naics-activity?naics_code=541512")
+    resp = await client.get("/api/insights/naics-activity?naics_code=541512&months=12")
     assert resp.status_code == 200
     data = resp.json()
     assert data["naics_code"] == "541512"
@@ -48,7 +48,7 @@ async def test_insight_endpoint_basic(client):
 async def test_insight_endpoint_with_set_aside(client):
     """set_aside param is forwarded to SAM.gov and reflected in the response."""
     _all_months_respond(respx, 3)
-    resp = await client.get("/api/insights/naics-activity?naics_code=541512&set_aside=SDVOSBC")
+    resp = await client.get("/api/insights/naics-activity?naics_code=541512&set_aside=SDVOSBC&months=12")
     assert resp.status_code == 200
     data = resp.json()
     assert data["set_aside_code"] == "SDVOSBC"

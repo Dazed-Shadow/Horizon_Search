@@ -38,6 +38,19 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-05-25] NAICS Insights — SQLite persistent cache + 24-month data
+**Type:** Enhancement
+**Priority:** High — IN PROGRESS
+**Tags:** #backend #frontend #perf #api
+**Detail:** The Insights page currently fetches 27–39 SAM.gov calls on first load for each NAICS code. The in-memory cache clears on every backend restart, so every server restart burns the full API quota again. Users also see a generic "backend not responding" error if they open the page without starting the backend. Two fixes:
+1. **SQLite persistent cache** — `backend/data/insights.db` stores monthly counts and agency totals keyed by (naics_code, set_aside, year, month). Historical months cached 90 days; current month cached 5 minutes; agency totals 24 hours. Data survives restarts and is portable (committed to the repo pre-seeded).
+2. **24-month lookback** — extend from 12 to 24 months, covering all of 2024 and 2025. InsightsPage gets a 12/24-month toggle. Bar chart adds year-boundary labels.
+3. **Pre-seeded DB** — `scripts/seed_insights.py` pre-populates the DB for all COMMON_NAICS codes. DB committed to repo so `git pull` gives instant insights for any common code.
+4. **Longer term** — bundle a static JSON snapshot in `frontend/public/` so the Insights page works even when the backend is not running.
+**Resolution:** (in progress this session)
+
+---
+
 ## [2026-05-24] LLC identity — Shade of Design LLC, tagline, accurate specialties
 **Type:** Feature
 **Priority:** High — COMPLETE
