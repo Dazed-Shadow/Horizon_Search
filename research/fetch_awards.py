@@ -225,9 +225,26 @@ def parse_opportunity(opp: dict, naics: str) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Fetch all pages for one NAICS code
+# Date chunking — SAM.gov rejects ranges longer than 365 days on the free tier
 # ---------------------------------------------------------------------------
-def fetch_all_for_naics(
+MAX_WINDOW_DAYS = 365
+
+def date_chunks(from_dt: datetime, to_dt: datetime) -> list[tuple[str, str]]:
+    """Split a date range into ≤365-day windows, newest-first."""
+    fmt = "%m/%d/%Y"
+    chunks = []
+    chunk_end = to_dt
+    while chunk_end > from_dt:
+        chunk_start = max(from_dt, chunk_end - timedelta(days=MAX_WINDOW_DAYS))
+        chunks.append((chunk_start.strftime(fmt), chunk_end.strftime(fmt)))
+        chunk_end = chunk_start - timedelta(days=1)
+    return chunks
+
+
+# ---------------------------------------------------------------------------
+# Fetch all pages for one NAICS code + one date window
+# ---------------------------------------------------------------------------
+def fetch_window(
     client: httpx.Client,
     api_key: str,
     naics: str,
@@ -260,7 +277,6 @@ def fetch_all_for_naics(
                 total_known = int(raw_total)
             except (ValueError, TypeError):
                 total_known = 0
-            print(f"  {total_known:,} award notices found", end="", flush=True)
 
         for opp in opps:
             row = parse_opportunity(opp, naics)
@@ -268,16 +284,41 @@ def fetch_all_for_naics(
                 rows.append(row)
 
         offset += len(opps)
-        print(f"\r  {len(rows):,} / {total_known:,} fetched   ", end="", flush=True)
 
-        # Stop when we've retrieved everything or hit SAM.gov's 10,000 record cap
         if not opps or offset >= total_known or offset >= 10_000:
             break
 
         time.sleep(delay)
 
-    print()  # newline after progress
     return rows
+
+
+def fetch_all_for_naics(
+    client: httpx.Client,
+    api_key: str,
+    naics: str,
+    from_dt: datetime,
+    to_dt: datetime,
+    delay: float = 1.0,
+) -> list[dict]:
+    """Fetch across multiple ≤365-day windows and deduplicate by notice_id."""
+    chunks = date_chunks(from_dt, to_dt)
+    seen: set[str] = set()
+    all_rows: list[dict] = []
+
+    for idx, (pf, pt) in enumerate(chunks, 1):
+        label = f"window {idx}/{len(chunks)}: {pf} → {pt}"
+        print(f"  [{label}]", end=" ", flush=True)
+        rows = fetch_window(client, api_key, naics, pf, pt, delay)
+        new = [r for r in rows if r["notice_id"] not in seen]
+        for r in new:
+            seen.add(r["notice_id"])
+        all_rows.extend(new)
+        print(f"{len(new):,} awards  (running total: {len(all_rows):,})")
+        if idx < len(chunks):
+            time.sleep(delay)
+
+    return all_rows
 
 
 # ---------------------------------------------------------------------------
@@ -393,11 +434,9 @@ def main() -> None:
         sys.exit(1)
 
     # Date range
-    fmt = "%m/%d/%Y"
-    to_date   = datetime.utcnow()
-    from_date = to_date - timedelta(days=args.months * 30)
-    posted_from = from_date.strftime(fmt)
-    posted_to   = to_date.strftime(fmt)
+    to_dt   = datetime.utcnow()
+    from_dt = to_dt - timedelta(days=args.months * 30)
+    chunks  = date_chunks(from_dt, to_dt)
 
     # Target codes
     target_codes = args.codes if args.codes else list(NAICS_CODES.keys())
@@ -406,7 +445,7 @@ def main() -> None:
         print(f"Unknown NAICS codes (will still fetch): {invalid}")
 
     print(f"\nHorizon Search — SAM.gov Award Notice Fetcher")
-    print(f"Date range : {posted_from}  →  {posted_to}  ({args.months} months)")
+    print(f"Date range : {from_dt.strftime('%m/%d/%Y')}  →  {to_dt.strftime('%m/%d/%Y')}  ({args.months} months, {len(chunks)} window(s))")
     print(f"NAICS codes: {len(target_codes)}")
     print(f"Delay      : {args.delay}s between requests")
     print(f"Output     : {DATA_DIR.relative_to(HERE.parent)}/\n")
@@ -419,7 +458,7 @@ def main() -> None:
             print(f"[{i}/{len(target_codes)}] {naics} — {label}")
             rows = fetch_all_for_naics(
                 client, api_key, naics,
-                posted_from, posted_to,
+                from_dt, to_dt,
                 delay=args.delay,
             )
             all_rows.extend(rows)
