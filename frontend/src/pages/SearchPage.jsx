@@ -4,8 +4,13 @@ import FilterPanel from "../components/FilterPanel";
 import ContractList from "../components/ContractList";
 import ContractDetailDrawer from "../components/ContractDetailDrawer";
 import BookmarksPanel from "../components/BookmarksPanel";
+import NaicsInsightPanel from "../components/NaicsInsightPanel";
+import ShareButton from "../components/ShareButton";
 import { useContracts } from "../hooks/useContracts";
 import { useBookmarks } from "../hooks/useBookmarks";
+import { useOpportunityStats } from "../hooks/useOpportunityStats";
+import { useNaicsInsight } from "../hooks/useNaicsInsight";
+import { COMMON_NAICS } from "../utils/constants";
 
 const QUICK_FILTERS = [
   { label: "All SDVOSB",       set_aside: "SDVOSBC" },
@@ -44,10 +49,23 @@ function ApiKeyBanner({ onDismiss }) {
   );
 }
 
+function StatPill({ label, value, color }) {
+  return (
+    <span className="flex items-center gap-1.5 text-xs">
+      <span className={`font-bold text-sm ${color}`}>
+        {value > 0 ? value.toLocaleString() : "—"}
+      </span>
+      <span className="text-brand-200">{label}</span>
+    </span>
+  );
+}
+
 export default function SearchPage() {
   const { filters, updateFilter, resetFilters, results, loading, error, page, limit, search, goToPage,
     sortBy, setSortBy, sortedContracts } = useContracts();
   const { bookmarks, isBookmarked, toggleBookmark, removeBookmark, count: bookmarkCount } = useBookmarks();
+  const { stats } = useOpportunityStats();
+  const { data: insightData, loading: insightLoading, error: insightError, fetchInsight, clear: clearInsight } = useNaicsInsight();
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
@@ -59,6 +77,30 @@ export default function SearchPage() {
       .then(d => { if (!d.api_key_configured) setApiKeyMissing(true); })
       .catch(() => {});
   }, []);
+
+  // Deep-link: on page load, if ?notice=<id> is in the URL fetch and open that contract.
+  useEffect(() => {
+    const noticeId = new URLSearchParams(window.location.search).get("notice");
+    if (!noticeId) return;
+    fetch(`/api/contracts/${encodeURIComponent(noticeId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setSelectedContract(data); })
+      .catch(() => {});
+  }, []);
+
+  function openContract(contract) {
+    setSelectedContract(contract);
+    const url = new URL(window.location);
+    url.searchParams.set("notice", contract.notice_id);
+    window.history.pushState({}, "", url);
+  }
+
+  function closeDrawer() {
+    setSelectedContract(null);
+    const url = new URL(window.location);
+    url.searchParams.delete("notice");
+    window.history.pushState({}, "", url);
+  }
 
   const hasActiveFilters = Object.entries(filters).some(([k, v]) => k !== "keyword" && v !== "");
 
@@ -76,6 +118,10 @@ export default function SearchPage() {
     return false;
   }
 
+  function handleRequestInsight(naicsCode) {
+    fetchInsight(naicsCode, filters.set_aside || null);
+  }
+
   function openBookmarksPanel() {
     setSelectedContract(null);
     setBookmarksPanelOpen(true);
@@ -83,14 +129,14 @@ export default function SearchPage() {
 
   function openContractFromBookmarks(contract) {
     setBookmarksPanelOpen(false);
-    setSelectedContract(contract);
+    openContract(contract);
   }
 
   return (
     <>
       <ContractDetailDrawer
         contract={selectedContract}
-        onClose={() => setSelectedContract(null)}
+        onClose={closeDrawer}
         isBookmarked={isBookmarked}
         onToggleBookmark={toggleBookmark}
       />
@@ -107,9 +153,18 @@ export default function SearchPage() {
       {/* Hero search bar */}
       <div className="bg-gradient-to-b from-brand-900 to-brand-700 pb-8 pt-4 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-brand-100 text-sm mb-4">
-            Search active federal contracts across SAM.gov — filtered for veteran-owned business set-asides.
-          </p>
+          {/* Live stats ticker */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-4">
+            {stats ? (
+              <>
+                <StatPill label="SDVOSB opportunities" value={stats.sdvosb} color="text-green-300" />
+                <StatPill label="VOSB opportunities"   value={stats.vosb}   color="text-green-300" />
+                <StatPill label="Small Business open"  value={stats.sba}    color="text-blue-300"  />
+              </>
+            ) : (
+              <p className="text-brand-300 text-xs animate-pulse">Loading live opportunity counts…</p>
+            )}
+          </div>
           <SearchBar
             value={filters.keyword}
             onChange={v => updateFilter("keyword", v)}
@@ -131,16 +186,19 @@ export default function SearchPage() {
                 {qf.label}
               </button>
             ))}
-            <button
-              onClick={openBookmarksPanel}
-              className={`ml-auto text-xs px-3 py-1.5 rounded-full font-medium transition border ${
-                bookmarkCount > 0
-                  ? "bg-amber-400/20 text-amber-200 border-amber-400/40 hover:bg-amber-400/30"
-                  : "bg-white/10 text-white/60 border-white/20 hover:bg-white/20"
-              }`}
-            >
-              {bookmarkCount > 0 ? `Saved (${bookmarkCount})` : "Saved"}
-            </button>
+            <div className="flex items-center gap-2 ml-auto">
+              <ShareButton />
+              <button
+                onClick={openBookmarksPanel}
+                className={`text-xs px-3 py-1.5 rounded-full font-medium transition border ${
+                  bookmarkCount > 0
+                    ? "bg-amber-400/20 text-amber-200 border-amber-400/40 hover:bg-amber-400/30"
+                    : "bg-white/10 text-white/60 border-white/20 hover:bg-white/20"
+                }`}
+              >
+                {bookmarkCount > 0 ? `Saved (${bookmarkCount})` : "Saved"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -156,6 +214,7 @@ export default function SearchPage() {
               onUpdate={updateFilter}
               onSearch={() => search(filters, 0)}
               onReset={resetFilters}
+              onRequestInsight={handleRequestInsight}
             />
 
             <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4 text-sm">
@@ -179,6 +238,14 @@ export default function SearchPage() {
 
           {/* Results */}
           <div className="flex-1 min-w-0">
+            <NaicsInsightPanel
+              data={insightData}
+              loading={insightLoading}
+              error={insightError}
+              onDismiss={clearInsight}
+              naicsLabel={COMMON_NAICS.find(n => n.code === insightData?.naics_code)?.label}
+            />
+
             {results && hasActiveFilters && (
               <span className="inline-block bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full text-xs font-medium mb-4">
                 Filters active
@@ -193,7 +260,7 @@ export default function SearchPage() {
               limit={limit}
               onPageChange={goToPage}
               hasFilters={hasActiveFilters || filters.keyword !== ""}
-              onOpenContract={setSelectedContract}
+              onOpenContract={openContract}
               sortBy={sortBy}
               setSortBy={setSortBy}
               sortedContracts={sortedContracts}

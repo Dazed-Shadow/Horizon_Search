@@ -23,3 +23,6 @@ Thumbs.db
 
 # Notion backups — local snapshots only, never commit
 scripts/backups/
+
+# Claude Code internal working directory
+.claude/

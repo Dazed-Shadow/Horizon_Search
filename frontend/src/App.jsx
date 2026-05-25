@@ -4,6 +4,10 @@ import Navbar from "./components/Navbar";
 import SearchPage from "./pages/SearchPage";
 import LicensingPage from "./pages/LicensingPage";
 import ContractPrimerPage from "./pages/ContractPrimerPage";
+import StartHerePage from "./pages/StartHerePage";
+import MissionPage from "./pages/MissionPage";
+import TrailblazersPage from "./pages/TrailblazersPage";
+import InsightsPage from "./pages/InsightsPage";
 
 export default function App() {
   return (
@@ -11,13 +15,16 @@ export default function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<SearchPage />} />
+        <Route path="/start" element={<StartHerePage />} />
+        <Route path="/mission" element={<MissionPage />} />
+        <Route path="/insights" element={<InsightsPage />} />
+        <Route path="/trailblazers" element={<TrailblazersPage />} />
         <Route path="/licensing" element={<LicensingPage />} />
         <Route path="/primer" element={<ContractPrimerPage />} />
       </Routes>
       <footer className="border-t border-gray-200 mt-auto py-5 text-center text-xs text-gray-400">
-        Horizon Search · Contract data sourced from{" "}
+        Horizon Search · Matching services to those who serve · Contract data sourced from{" "}
         <a href="https://sam.gov" target="_blank" rel="noopener noreferrer" className="underline">SAM.gov</a>
-        {" "}· Built for veteran-owned businesses
       </footer>
     </div>
   );

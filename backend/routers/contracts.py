@@ -5,8 +5,8 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
-from services.sam_gov import search_contracts, SET_ASIDE_LABELS, SOLICITATION_TYPE_LABELS
-from models.contract import ContractSearchResult
+from services.sam_gov import search_contracts, get_contract_by_notice_id, get_opportunity_stats, SET_ASIDE_LABELS, SOLICITATION_TYPE_LABELS
+from models.contract import Contract, ContractSearchResult
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
@@ -58,6 +58,16 @@ async def search(
         raise HTTPException(status_code=502, detail=f"SAM.gov API error: {str(exc)}")
 
 
+@router.get("/stats")
+async def opportunity_stats():
+    """Live opportunity counts by veteran set-aside — cached 1hr, used by the hero ticker."""
+    try:
+        return await get_opportunity_stats()
+    except Exception as exc:
+        log.exception("Stats fetch failed")
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
 @router.get("/filters/set-asides")
 async def list_set_asides():
     """Return all supported set-aside codes and their labels."""
@@ -68,3 +78,18 @@ async def list_set_asides():
 async def list_solicitation_types():
     """Return all solicitation type codes and labels."""
     return [{"code": k, "label": v} for k, v in SOLICITATION_TYPE_LABELS.items()]
+
+
+# Deep-link support: must be last — /{notice_id} is a wildcard and would shadow /filters/* if placed first.
+@router.get("/{notice_id}", response_model=Contract)
+async def get_contract(notice_id: str):
+    try:
+        contract = await get_contract_by_notice_id(notice_id)
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=502, detail=f"SAM.gov returned {exc.response.status_code}")
+    except Exception as exc:
+        log.exception("Notice ID lookup failed")
+        raise HTTPException(status_code=502, detail=str(exc))
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    return contract

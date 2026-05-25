@@ -49,46 +49,70 @@ export const US_STATES = [
   ["PR","Puerto Rico"],["GU","Guam"],["VI","U.S. Virgin Islands"],
 ];
 
-// Top NAICS codes relevant to veteran-owned businesses
+// Top NAICS codes relevant to veteran-owned businesses — grouped by industry category.
+// Category field drives the NAICS discovery section on the Start Here page.
 export const COMMON_NAICS = [
-  { code: "236220", label: "Commercial & Institutional Building Construction" },
-  { code: "237310", label: "Highway, Street, and Bridge Construction" },
-  { code: "238990", label: "All Other Specialty Trade Contractors" },
-  { code: "336411", label: "Aircraft Manufacturing" },
-  { code: "336992", label: "Military Armored Vehicle Manufacturing" },
-  { code: "488190", label: "Other Support Activities for Air Transportation" },
-  { code: "511210", label: "Software Publishers" },
-  { code: "517110", label: "Wired Telecommunications Carriers" },
-  { code: "518210", label: "Data Processing & Hosting" },
-  { code: "519290", label: "Web Search Portals, All Other Info Services" },
-  { code: "541211", label: "Offices of Certified Public Accountants" },
-  { code: "541310", label: "Architectural Services" },
-  { code: "541330", label: "Engineering Services" },
-  { code: "541511", label: "Custom Computer Programming" },
-  { code: "541512", label: "Computer Systems Design" },
-  { code: "541513", label: "Computer Facilities Management" },
-  { code: "541519", label: "Other Computer Related Services" },
-  { code: "541611", label: "Administrative Management Consulting" },
-  { code: "541612", label: "Human Resources Consulting" },
-  { code: "541620", label: "Environmental Consulting" },
-  { code: "541690", label: "Other Scientific & Technical Consulting" },
-  { code: "541711", label: "R&D in Biotechnology" },
-  { code: "541715", label: "R&D in Physical, Engineering Sciences" },
-  { code: "541990", label: "All Other Professional, Scientific Services" },
-  { code: "561110", label: "Office Administrative Services" },
-  { code: "561210", label: "Facilities Support Services" },
-  { code: "561320", label: "Temporary Staffing Agencies" },
-  { code: "561612", label: "Security Guard & Patrol Services" },
-  { code: "561621", label: "Security Systems Services" },
-  { code: "561720", label: "Janitorial Services" },
-  { code: "561730", label: "Landscaping Services" },
-  { code: "561990", label: "All Other Support Services" },
-  { code: "621111", label: "Offices of Physicians" },
-  { code: "621399", label: "Offices of Other Health Practitioners" },
-  { code: "621910", label: "Ambulance Services" },
-  { code: "622110", label: "General Medical & Surgical Hospitals" },
-  { code: "811212", label: "Computer & Office Machine Repair" },
-  { code: "811310", label: "Commercial Equipment Repair & Maintenance" },
+  // Construction
+  { code: "236115", label: "New Single-Family Housing Construction",          category: "Construction" },
+  { code: "236220", label: "Commercial & Institutional Building Construction", category: "Construction" },
+  { code: "237110", label: "Water & Sewer Line Construction",                  category: "Construction" },
+  { code: "237310", label: "Highway, Street, and Bridge Construction",         category: "Construction" },
+  { code: "237990", label: "Other Heavy & Civil Engineering Construction",     category: "Construction" },
+  { code: "238110", label: "Poured Concrete Foundation & Structure Work",      category: "Construction" },
+  { code: "238990", label: "All Other Specialty Trade Contractors",            category: "Construction" },
+  // Technology & IT
+  { code: "511210", label: "Software Publishers",                              category: "Technology & IT" },
+  { code: "517110", label: "Wired Telecommunications Carriers",                category: "Technology & IT" },
+  { code: "517410", label: "Satellite Telecommunications",                     category: "Technology & IT" },
+  { code: "518210", label: "Data Processing & Hosting",                        category: "Technology & IT" },
+  { code: "519290", label: "Web Search Portals & Other Info Services",         category: "Technology & IT" },
+  { code: "541511", label: "Custom Computer Programming Services",             category: "Technology & IT" },
+  { code: "541512", label: "Computer Systems Design Services",                 category: "Technology & IT" },
+  { code: "541513", label: "Computer Facilities Management Services",          category: "Technology & IT" },
+  { code: "541519", label: "Other Computer Related Services",                  category: "Technology & IT" },
+  { code: "811212", label: "Computer & Office Machine Repair & Maintenance",   category: "Technology & IT" },
+  // Professional & Consulting Services
+  { code: "541211", label: "Offices of Certified Public Accountants",          category: "Professional Services" },
+  { code: "541310", label: "Architectural Services",                           category: "Professional Services" },
+  { code: "541330", label: "Engineering Services",                             category: "Professional Services" },
+  { code: "541380", label: "Testing Laboratories & Services",                  category: "Professional Services" },
+  { code: "541611", label: "Administrative Management Consulting",             category: "Professional Services" },
+  { code: "541612", label: "Human Resources Consulting",                       category: "Professional Services" },
+  { code: "541613", label: "Marketing Consulting Services",                    category: "Professional Services" },
+  { code: "541620", label: "Environmental Consulting Services",                category: "Professional Services" },
+  { code: "541690", label: "Other Scientific & Technical Consulting",          category: "Professional Services" },
+  { code: "541711", label: "R&D in Biotechnology",                            category: "Professional Services" },
+  { code: "541715", label: "R&D in Physical & Engineering Sciences",           category: "Professional Services" },
+  { code: "541990", label: "All Other Professional & Scientific Services",     category: "Professional Services" },
+  // Administrative & Support Services
+  { code: "561110", label: "Office Administrative Services",                   category: "Administrative & Support" },
+  { code: "561210", label: "Facilities Support Services",                      category: "Administrative & Support" },
+  { code: "561320", label: "Temporary Staffing Services",                      category: "Administrative & Support" },
+  { code: "561612", label: "Security Guard & Patrol Services",                 category: "Administrative & Support" },
+  { code: "561621", label: "Security Systems Services (except Locksmiths)",    category: "Administrative & Support" },
+  { code: "561720", label: "Janitorial Services",                              category: "Administrative & Support" },
+  { code: "561730", label: "Landscaping Services",                             category: "Administrative & Support" },
+  { code: "561990", label: "All Other Support Services",                       category: "Administrative & Support" },
+  // Healthcare & Medical
+  { code: "621111", label: "Offices of Physicians (except Mental Health)",     category: "Healthcare & Medical" },
+  { code: "621330", label: "Offices of Mental Health Practitioners",           category: "Healthcare & Medical" },
+  { code: "621399", label: "Offices of All Other Health Practitioners",        category: "Healthcare & Medical" },
+  { code: "621610", label: "Home Health Care Services",                        category: "Healthcare & Medical" },
+  { code: "621910", label: "Ambulance Services",                               category: "Healthcare & Medical" },
+  { code: "622110", label: "General Medical & Surgical Hospitals",             category: "Healthcare & Medical" },
+  { code: "623110", label: "Nursing Care Facilities",                          category: "Healthcare & Medical" },
+  // Defense & Aerospace
+  { code: "336411", label: "Aircraft Manufacturing",                           category: "Defense & Aerospace" },
+  { code: "336413", label: "Other Aircraft Parts & Equipment Manufacturing",   category: "Defense & Aerospace" },
+  { code: "336992", label: "Military Armored Vehicle Manufacturing",           category: "Defense & Aerospace" },
+  { code: "488190", label: "Other Support Activities for Air Transportation",  category: "Defense & Aerospace" },
+  { code: "811310", label: "Commercial & Industrial Machinery Repair",         category: "Defense & Aerospace" },
+  // Logistics & Transportation
+  { code: "484110", label: "General Freight Trucking, Local",                  category: "Logistics & Transportation" },
+  { code: "484121", label: "General Freight Trucking, Long-Distance (TL)",    category: "Logistics & Transportation" },
+  { code: "488510", label: "Freight Transportation Arrangement",               category: "Logistics & Transportation" },
+  { code: "493110", label: "General Warehousing & Storage",                   category: "Logistics & Transportation" },
+  { code: "532490", label: "Other Commercial & Industrial Equipment Rental",   category: "Logistics & Transportation" },
 ];
 
 export const SET_ASIDE_COLORS = {
@@ -99,3 +123,32 @@ export const SET_ASIDE_COLORS = {
 };
 
 export const VETERAN_CODES = new Set(["SDVOSBC", "SDVOSBS", "VSB", "VOSB"]);
+
+// Plain-language explanations for newcomers — shown via the "What does this mean?" toggle on each card.
+export const SET_ASIDE_PLAIN = {
+  SDVOSBC:  { who: "Service-Disabled Veteran-Owned Small Business (SDVOSB)", plain: "Only SDVOSBs compete for this contract. You must be VA-verified as a SDVOSB to submit a bid.", canBid: true },
+  SDVOSBS:  { who: "Service-Disabled Veteran-Owned Small Business (SDVOSB)", plain: "The agency selected one SDVOSB directly — no open competition. This is a sole-source award.", canBid: false },
+  VOSB:     { who: "Veteran-Owned Small Business (VOSB)", plain: "Only VA-verified VOSBs can bid. You must hold an active VOSB certification through the VA's VetCert program.", canBid: true },
+  VSB:      { who: "Veteran-Owned Small Business (VOSB)", plain: "Only VA-verified VOSBs can bid. You must hold an active VOSB certification through the VA's VetCert program.", canBid: true },
+  "8AN":    { who: "SBA 8(a) Certified Small Business", plain: "Open competition, but only businesses enrolled in the SBA's 8(a) Business Development Program can bid.", canBid: true },
+  "8A":     { who: "SBA 8(a) Certified Small Business", plain: "The agency selected a specific 8(a) firm directly. No open competition — sole-source award.", canBid: false },
+  SBA:      { who: "Small Business (any)", plain: "Open to any small business that meets SBA's size standards for this industry (NAICS code). No veteran certification required.", canBid: true },
+  SBP:      { who: "Small Business (partial set-aside)", plain: "Part of this contract is reserved for small businesses; the rest is unrestricted. Check SAM.gov for the split details.", canBid: true },
+  HZC:      { who: "HUBZone Certified Business", plain: "Only businesses certified in a Historically Underutilized Business Zone (HUBZone) can compete.", canBid: true },
+  HZS:      { who: "HUBZone Certified Business", plain: "Sole-source to a specific HUBZone firm. No competition.", canBid: false },
+  WOSB:     { who: "Woman-Owned Small Business (WOSB)", plain: "Only WOSB-certified businesses can bid. Certification comes from SBA or an SBA-approved third party.", canBid: true },
+  WOSBSS:   { who: "Woman-Owned Small Business (WOSB)", plain: "Sole-source to a specific WOSB — no open competition.", canBid: false },
+  EDWOSB:   { who: "Economically Disadvantaged WOSB (EDWOSB)", plain: "Similar to WOSB but for businesses in industries where women are economically disadvantaged. EDWOSB certification required.", canBid: true },
+  EDWOSBSS: { who: "Economically Disadvantaged WOSB (EDWOSB)", plain: "Sole-source to a specific EDWOSB — no open competition.", canBid: false },
+};
+
+export const SOLICITATION_TYPE_PLAIN = {
+  o: { label: "Active Solicitation", plain: "You can submit a bid. This is a formal request for proposals (RFP), quotes (RFQ), or bids (IFB). Read the full solicitation on SAM.gov before responding.", canBid: true },
+  k: { label: "Combined Synopsis / Solicitation", plain: "A streamlined format that combines the public notice and the solicitation in one document. You can submit a bid directly.", canBid: true },
+  p: { label: "Pre-Solicitation Notice", plain: "The agency is signaling a contract is coming soon but hasn't released the full solicitation yet. Bookmark this and check back — you'll want to bid when it opens.", canBid: false },
+  r: { label: "Sources Sought / Market Research", plain: "The agency is researching vendors before writing a solicitation. Responding here is not a bid — it's a chance to introduce your company and shape the requirements. Highly recommended.", canBid: false },
+  s: { label: "Special Notice", plain: "An informational announcement from the agency — conference invites, industry days, or other updates. Not a solicitation.", canBid: false },
+  i: { label: "Intent to Bundle (DoD)", plain: "The Department of Defense is notifying it plans to combine contracts. This affects small business opportunities. Not a solicitation.", canBid: false },
+  a: { label: "Award Notice", plain: "This contract was already awarded to another company. You cannot bid — it is closed.", canBid: false },
+  u: { label: "Justification & Approval (J&A)", plain: "The agency is justifying a sole-source or limited-competition award. Generally not open for bidding.", canBid: false },
+};

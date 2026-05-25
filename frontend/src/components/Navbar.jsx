@@ -2,10 +2,16 @@ import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 
 const NAV_LINKS = [
-  { to: "/",          label: "Search Contracts" },
-  { to: "/licensing", label: "Licensing & Certs" },
-  { to: "/primer",    label: "How to Win" },
+  { to: "/",              label: "Search Contracts" },
+  { to: "/insights",      label: "Market Intel" },
+  { to: "/mission",       label: "Mission" },
+  { to: "/trailblazers",  label: "Trailblazers" },
+  { to: "/licensing",     label: "Licensing & Certs" },
+  { to: "/primer",        label: "How to Win" },
 ];
+
+// "Start Here" is visually separate — a green CTA pill for newcomers who don't know where to begin.
+const START_LINK = { to: "/start", label: "Start Here" };
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -24,7 +30,7 @@ export default function Navbar() {
             </div>
             <div className="leading-tight">
               <p className="font-bold text-base tracking-tight">Horizon Search</p>
-              <p className="text-[10px] text-brand-200">Veteran Contract Intelligence</p>
+              <p className="text-[10px] text-brand-200">Matching services to those who serve</p>
             </div>
           </NavLink>
 
@@ -46,6 +52,18 @@ export default function Navbar() {
                 {link.label}
               </NavLink>
             ))}
+            <NavLink
+              to={START_LINK.to}
+              className={({ isActive }) =>
+                `ml-2 px-4 py-2 rounded-lg text-sm font-bold transition border ${
+                  isActive
+                    ? "bg-green-500 text-white border-green-400"
+                    : "bg-green-600/30 text-green-200 border-green-500/40 hover:bg-green-600/50 hover:text-white"
+                }`
+              }
+            >
+              {START_LINK.label}
+            </NavLink>
           </nav>
 
           {/* Mobile hamburger */}
@@ -81,6 +99,17 @@ export default function Navbar() {
                 {link.label}
               </NavLink>
             ))}
+            <NavLink
+              to={START_LINK.to}
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                `block px-4 py-2 rounded-lg text-sm font-bold transition ${
+                  isActive ? "bg-green-500 text-white" : "text-green-300 hover:bg-green-600/30"
+                }`
+              }
+            >
+              {START_LINK.label}
+            </NavLink>
           </nav>
         )}
       </div>
