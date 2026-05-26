@@ -162,12 +162,14 @@ def fetch_expiring_for_naics(
     search_from: str,
     search_to: str,
     delay: float,
-) -> list[dict]:
+) -> tuple[list[dict], list[str]]:
     """
     Fetch recent opportunity notices for a NAICS code and post-filter
     to those whose responseDeadLine is within [window_from, window_to].
+    Returns (matches, errors).
     """
     matches: list[dict] = []
+    errors:  list[str]  = []
     offset   = 0
     page_sz  = 100
     total_known: int | None = None
@@ -183,15 +185,21 @@ def fetch_expiring_for_naics(
             if e.response.status_code == 429:
                 retry_count += 1
                 if retry_count > max_retries:
-                    print(f"  [429] Max retries ({max_retries}) exceeded -- skipping {naics}")
+                    msg = f"NAICS {naics}: SAM.gov 429 -- max retries ({max_retries}) exceeded"
+                    errors.append(msg)
+                    print(f"  [429] {msg}")
                     break
                 print(f"  [429] Rate limited -- waiting 60s (retry {retry_count}/{max_retries}) ...")
                 time.sleep(60)
                 continue
-            print(f"  [HTTP {e.response.status_code}] skipping")
+            msg = f"NAICS {naics}: HTTP {e.response.status_code}"
+            errors.append(msg)
+            print(f"  [{msg}] skipping")
             break
         except (httpx.TimeoutException, Exception) as e:
-            print(f"  [ERROR] {e}")
+            msg = f"NAICS {naics}: {e}"
+            errors.append(msg)
+            print(f"  [ERROR] {msg}")
             break
 
         opps = data.get("opportunitiesData") or []
@@ -213,7 +221,7 @@ def fetch_expiring_for_naics(
 
         time.sleep(delay)
 
-    return matches
+    return matches, errors
 
 
 # ---------------------------------------------------------------------------
@@ -273,11 +281,12 @@ def main() -> None:
             label = PIPELINE_NAICS.get(naics, naics)
             print(f"[{i}/{len(target_codes)}] {naics} -- {label}")
             try:
-                matches = fetch_expiring_for_naics(
+                matches, errs = fetch_expiring_for_naics(
                     client, api_key, naics,
                     win_from, win_to, search_from, search_to, args.delay,
                 )
                 all_matches.extend(matches)
+                errors.extend(errs)
                 print(f"  {len(matches)} expiring contracts found")
             except Exception as exc:
                 msg = f"NAICS {naics}: {exc}"
