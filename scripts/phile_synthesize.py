@@ -1,58 +1,48 @@
 #!/usr/bin/env python3
 """
-C-Phile -- voice synthesis agent.
+C-Phile -- voice synthesis PREP agent.
 
-Reads voice reference from Weaving I am Content.docx, picks one article
-from the most recent research/data/inbox/*.jsonl, calls Claude Sonnet 4.6,
-and writes:
-  research/data/drafts/phile_<timestamp>_social.txt
-  research/data/drafts/phile_<timestamp>_blog.html
+Builds a self-contained synthesis bundle (one markdown file per article) that
+a Claude Code session can consume. Synthesis itself runs on JR's Claude Code
+subscription, not on a metered Anthropic API key.
 
-API key: read from backend/.env -> ANTHROPIC_API_KEY
-If key is missing, writes stub files and exits 0 (timing infra still runs).
+Inputs:
+  research/data/inbox/*.jsonl   -- C-Transit output (picks most recent file, first article)
+  G:/My Drive/AI GEN/Weaving I am Content.docx   -- voice reference (override with --voice)
+
+Output:
+  research/data/drafts/_pending/phile_<timestamp>.md
+    -- complete prompt: voice excerpt + article + task + output spec
+    -- ready to be consumed by either:
+       (Option A) a scheduled Claude Code agent that watches _pending/
+       (Option B) JR opening the file in an interactive Claude Code session
+
+Consumer writes finished drafts to research/data/drafts/_done/ and moves the
+bundle to research/data/drafts/_consumed/.
 
 Usage:
     python scripts/phile_synthesize.py
     python scripts/phile_synthesize.py --voice "G:/path/to/voice.docx"
+
+See Central Hub: pipeline/DECISIONS.md (D-006) and pipeline/AGENTS.md (C-Phile)
+for the rationale behind the prep/consume split.
 """
 
 import argparse
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import httpx  # noqa: F401 -- kept so import order matches project style
-
-HERE       = Path(__file__).resolve().parent.parent   # repo root
-INBOX_DIR  = HERE / "research" / "data" / "inbox"
-DRAFTS_DIR = HERE / "research" / "data" / "drafts"
-ENV_PATH   = HERE / "backend" / ".env"
+HERE        = Path(__file__).resolve().parent.parent   # repo root
+INBOX_DIR   = HERE / "research" / "data" / "inbox"
+DRAFTS_DIR  = HERE / "research" / "data" / "drafts"
+PENDING_DIR = DRAFTS_DIR / "_pending"
 
 DEFAULT_VOICE_DOC = Path("G:/My Drive/AI GEN/Weaving I am Content.docx")
-MODEL_ID          = "claude-sonnet-4-6"
 
 sys.path.insert(0, str(HERE / "research"))
 from _logs.log_run import log as log_run  # noqa: E402
-
-
-# ---------------------------------------------------------------------------
-# Env loading -- mirrors fetch_awards.py
-# ---------------------------------------------------------------------------
-def load_env(path: Path) -> dict:
-    env = {}
-    if not path.exists():
-        return env
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" in line:
-                k, v = line.split("=", 1)
-                env[k.strip()] = v.strip().strip('"').strip("'")
-    return env
 
 
 # ---------------------------------------------------------------------------
@@ -94,124 +84,83 @@ def pick_article() -> tuple[dict | None, list[str]]:
                     return json.loads(line), errors
     except Exception as exc:
         errors.append(f"Failed to read inbox file {latest}: {exc}")
+        return None, errors
 
     errors.append(f"Inbox file {latest} was empty or unreadable")
     return None, errors
 
 
 # ---------------------------------------------------------------------------
-# Stub output when no API key
+# Build the synthesis bundle
 # ---------------------------------------------------------------------------
-def write_stubs(ts: str) -> tuple[Path, Path]:
-    DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
-    social_path = DRAFTS_DIR / f"phile_{ts}_social.txt"
-    blog_path   = DRAFTS_DIR / f"phile_{ts}_blog.html"
-    stub_msg    = "[stub -- no ANTHROPIC_API_KEY set]"
-    social_path.write_text(stub_msg, encoding="utf-8")
-    blog_path.write_text(f"<p>{stub_msg}</p>", encoding="utf-8")
-    return social_path, blog_path
+def build_bundle(ts: str, voice_text: str, article: dict) -> str:
+    """Return the full markdown bundle as a string."""
+    title  = article.get("title", "").strip() or "[no title]"
+    source = article.get("source", "").strip() or "[no source]"
+    url    = article.get("url", "").strip() or "[no url]"
+    body   = (article.get("body", "") or "").strip()[:2000]
 
+    if not voice_text:
+        voice_section = "_(voice doc unavailable -- consumer should default to grounded, reflective tone)_"
+    else:
+        voice_section = voice_text
 
-# ---------------------------------------------------------------------------
-# Call Claude Sonnet 4.6
-# ---------------------------------------------------------------------------
-def synthesize(api_key: str, voice_text: str, article: dict) -> tuple[str, str, list[str]]:
-    """
-    Returns (social_draft, blog_html, errors).
-    social_draft: <=280 char social post
-    blog_html: short HTML blog draft with <h1> + <p>
-    """
-    errors: list[str] = []
+    return f"""# C-Phile Synthesis Request
 
-    import anthropic  # type: ignore
+<!-- generated: {ts} -->
+<!-- consumer: Claude Code session (Option A scheduled, or Option B ad-hoc) -->
 
-    client = anthropic.Anthropic(api_key=api_key)
+## Voice reference
 
-    system_prompt = f"""You are C-Phile, the voice synthesizer for Shade of Design LLC.
-Your job: transform source articles into two content pieces that match the established voice.
+_(excerpted from `Weaving I am Content.docx`)_
 
-VOICE REFERENCE (from Weaving I am Content.docx):
-{voice_text}
+{voice_section}
 
-VOICE GUIDELINES:
+## Voice guidelines
+
 - Reflective and grounded, not promotional
-- Connects current events to human experience and personal growth
-- Pairs business/government themes with meaning and purpose
-- Uses "we" to include the reader
+- Connect current events to human experience and personal growth
+- Pair business/government themes with meaning and purpose
+- Use "we" to include the reader
 - Short, punchy sentences. No fluff.
 
-OUTPUT FORMAT — respond with EXACTLY this structure, nothing else:
-SOCIAL: <your social post text, 280 chars max>
-BLOG_TITLE: <a short blog title>
-BLOG_HTML:
-<h1>title here</h1>
-<p>paragraph one</p>
-<p>paragraph two</p>"""
+## Source article
 
-    article_text = (
-        f"Title: {article.get('title', '')}\n"
-        f"Source: {article.get('source', '')} | {article.get('url', '')}\n\n"
-        f"{article.get('body', '')[:2000]}"
-    )
+- **Title:** {title}
+- **Source:** {source}
+- **URL:** {url}
 
-    user_prompt = (
-        f"Synthesize this article into (a) one <=280 char social post and "
-        f"(b) one short HTML blog draft with <h1> + <p> paragraphs.\n\n"
-        f"ARTICLE:\n{article_text}"
-    )
+### Body
 
-    try:
-        message = client.messages.create(
-            model=MODEL_ID,
-            max_tokens=1024,
-            messages=[{"role": "user", "content": user_prompt}],
-            system=system_prompt,
-        )
-        raw = message.content[0].text if message.content else ""
-    except Exception as exc:
-        errors.append(f"Claude API call failed: {exc}")
-        return "", "", errors
+{body}
 
-    # Parse structured output
-    social = ""
-    blog_html = ""
-    blog_title = ""
+## Task
 
-    lines = raw.splitlines()
-    blog_lines: list[str] = []
-    in_blog = False
+Synthesize the article above into two pieces, in the voice described:
 
-    for line in lines:
-        if line.startswith("SOCIAL:"):
-            social = line[len("SOCIAL:"):].strip()
-        elif line.startswith("BLOG_TITLE:"):
-            blog_title = line[len("BLOG_TITLE:"):].strip()
-        elif line.startswith("BLOG_HTML:"):
-            in_blog = True
-        elif in_blog:
-            blog_lines.append(line)
+1. **One social post** — max 280 characters
+2. **One short HTML blog draft** — `<h1>` + 2-3 `<p>` paragraphs
 
-    blog_html = "\n".join(blog_lines).strip()
+## Output protocol
 
-    # Fallback: if parsing failed, use raw response wrapped in HTML
-    if not social:
-        social = raw[:280]
-    if not blog_html:
-        safe = raw.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        blog_html = f"<h1>{blog_title or 'Draft'}</h1>\n<pre>{safe}</pre>"
+When done, write the results to:
 
-    # Enforce 280 char cap on social
-    if len(social) > 280:
-        social = social[:277] + "..."
+- `research/data/drafts/_done/phile_{ts}_social.txt`  _(plain text, ≤280 chars)_
+- `research/data/drafts/_done/phile_{ts}_blog.html`  _(HTML only, no `<html>`/`<body>` wrapper)_
 
-    return social, blog_html, errors
+Then move this bundle from `_pending/` to `_consumed/`:
+
+```
+mv research/data/drafts/_pending/phile_{ts}.md research/data/drafts/_consumed/phile_{ts}.md
+```
+"""
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main() -> None:
-    parser = argparse.ArgumentParser(description="C-Phile: synthesize articles with Claude")
+    parser = argparse.ArgumentParser(description="C-Phile: build a synthesis bundle for Claude Code to consume")
     parser.add_argument(
         "--voice", type=Path, default=DEFAULT_VOICE_DOC,
         help="Path to voice reference .docx (default: G:/My Drive/AI GEN/Weaving I am Content.docx)",
@@ -222,64 +171,28 @@ def main() -> None:
     ts         = started_at.strftime("%Y%m%d_%H%M%S")
     all_errors: list[str] = []
 
-    # Load API key
-    env     = load_env(ENV_PATH)
-    api_key = env.get("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY", "")
-
-    if not api_key:
-        msg = "ANTHROPIC_API_KEY not set in backend/.env -- writing stub files"
-        print(f"[WARN] {msg}")
-        all_errors.append(msg)
-        DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
-        social_path, blog_path = write_stubs(ts)
-        print(f"  Stub social  -> {social_path}")
-        print(f"  Stub blog    -> {blog_path}")
-        log_run("c-phile", started_at, record_count=1, errors=all_errors)
-        return
-
-    # Read voice doc
     print(f"C-Phile: reading voice doc from {args.voice}")
     voice_text, errs = read_voice_doc(args.voice)
     all_errors.extend(errs)
-    if not voice_text:
-        voice_text = "[voice doc unavailable -- using default tone]"
 
-    # Pick article
     print(f"C-Phile: selecting article from {INBOX_DIR}")
     article, errs = pick_article()
     all_errors.extend(errs)
 
     if article is None:
-        msg = "No article available -- writing stub files"
-        print(f"[WARN] {msg}")
-        all_errors.append(msg)
-        DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
-        social_path, blog_path = write_stubs(ts)
-        print(f"  Stub social  -> {social_path}")
-        print(f"  Stub blog    -> {blog_path}")
-        log_run("c-phile", started_at, record_count=1, errors=all_errors)
+        print("[WARN] No article available -- nothing to bundle. Run C-Transit first.")
+        log_run("c-phile", started_at, record_count=0, errors=all_errors)
         return
 
     print(f"  Article: {article.get('title', '')[:70]}")
-    print(f"  Calling {MODEL_ID} ...")
 
-    # Synthesize
-    social, blog_html, errs = synthesize(api_key, voice_text, article)
-    all_errors.extend(errs)
+    bundle  = build_bundle(ts, voice_text, article)
+    PENDING_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = PENDING_DIR / f"phile_{ts}.md"
+    out_path.write_text(bundle, encoding="utf-8")
 
-    DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
-    social_path = DRAFTS_DIR / f"phile_{ts}_social.txt"
-    blog_path   = DRAFTS_DIR / f"phile_{ts}_blog.html"
-
-    if not social and not blog_html:
-        social_path, blog_path = write_stubs(ts)
-        print(f"  Synthesis failed -- wrote stubs")
-    else:
-        social_path.write_text(social, encoding="utf-8")
-        blog_path.write_text(blog_html, encoding="utf-8")
-        print(f"  Social ({len(social)} chars) -> {social_path}")
-        print(f"  Blog HTML    -> {blog_path}")
-        print(f"\n  Social preview: {social[:120]}")
+    print(f"  Bundle  -> {out_path}")
+    print(f"  Consume via scheduled Claude Code agent (Option A) or open in a session (Option B).")
 
     log_run("c-phile", started_at, record_count=1, errors=all_errors if all_errors else None)
 
