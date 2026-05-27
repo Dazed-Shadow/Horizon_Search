@@ -1,0 +1,41 @@
+# C-Transit feed registry
+# Each [[feeds]] entry is fetched in order; disabled entries are skipped.
+# category taxonomy: smallbiz | policy | tech | ai | health | world
+#
+# Validated 2026-05-27 — see D-011 in Central Hub/pipeline/DECISIONS.md
+
+[[feeds]]
+name     = "Federal Register SBA"
+url      = "https://www.federalregister.gov/api/v1/documents.rss?conditions[agencies][]=small-business-administration&per_page=20"
+category = "smallbiz"
+enabled  = true
+
+[[feeds]]
+name     = "Federal Register All Agencies"
+url      = "https://www.federalregister.gov/api/v1/documents.rss"
+category = "policy"
+enabled  = true
+
+[[feeds]]
+name     = "Ars Technica"
+url      = "https://feeds.arstechnica.com/arstechnica/index"
+category = "tech"
+enabled  = true
+
+[[feeds]]
+name     = "MIT Technology Review"
+url      = "https://www.technologyreview.com/feed/"
+category = "ai"
+enabled  = true
+
+[[feeds]]
+name     = "KFF Health News"
+url      = "https://kffhealthnews.org/feed/"
+category = "health"
+enabled  = true
+
+[[feeds]]
+name     = "BBC World News"
+url      = "https://feeds.bbci.co.uk/news/world/rss.xml"
+category = "world"
+enabled  = true

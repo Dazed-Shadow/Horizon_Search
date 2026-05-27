@@ -66,47 +66,105 @@ def read_voice_doc(path: Path) -> tuple[str, list[str]]:
 
 
 # ---------------------------------------------------------------------------
-# Pick most recent inbox file and read N distinct articles
+# Pick articles from today's inbox files, round-robin by category
 # ---------------------------------------------------------------------------
 def pick_articles(count: int) -> tuple[list[dict], list[str]]:
-    """Return (article_list, errors). List may be shorter than count if inbox is thin."""
+    """
+    Return (article_list, errors). List may be shorter than count if inbox is thin.
+
+    Reads all today's inbox JSONLs (glob inbox/*_<YYYY-MM-DD>.jsonl), dedupes
+    by URL across files, then round-robins across categories until count is
+    reached or all categories are exhausted.
+
+    Falls back to all .jsonl files modified in the last 24 hours if the
+    date-glob yields nothing (e.g. when running just after midnight UTC).
+    """
+    import time as _time
+
     errors: list[str] = []
-    inbox_files = sorted(INBOX_DIR.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not inbox_files:
-        errors.append(f"No .jsonl files found in {INBOX_DIR}")
+
+    # --- locate today's files ---
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    date_files = sorted(INBOX_DIR.glob(f"*_{today_str}.jsonl"))
+
+    if not date_files:
+        # Fallback: any .jsonl modified within the last 24 h
+        cutoff = _time.time() - 86400
+        date_files = [
+            p for p in INBOX_DIR.glob("*.jsonl")
+            if p.stat().st_mtime >= cutoff
+        ]
+        if date_files:
+            print(f"  [INFO] No date-stamped files for {today_str}; "
+                  f"using {len(date_files)} file(s) modified in last 24h.")
+
+    if not date_files:
+        all_files = sorted(INBOX_DIR.glob("*.jsonl"))
+        if not all_files:
+            errors.append(f"No .jsonl files found in {INBOX_DIR}")
+            return [], errors
+        # Last resort: single most-recent file (original behavior)
+        date_files = [all_files[-1]]
+        print(f"  [INFO] Falling back to most-recent inbox file: {date_files[0].name}")
+
+    # --- load all records, deduping by URL ---
+    seen_urls: set[str] = set()
+    by_category: dict[str, list[dict]] = {}
+
+    for path in date_files:
+        try:
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        article = json.loads(line)
+                    except json.JSONDecodeError as exc:
+                        errors.append(f"Skipped malformed JSON line in {path.name}: {exc}")
+                        continue
+                    url = article.get("url", "")
+                    if url in seen_urls:
+                        continue
+                    seen_urls.add(url)
+                    cat = article.get("category", "uncategorized")
+                    by_category.setdefault(cat, []).append(article)
+        except Exception as exc:
+            errors.append(f"Failed to read inbox file {path}: {exc}")
+
+    if not by_category:
+        errors.append("All inbox files were empty or had no valid records")
         return [], errors
 
-    latest = inbox_files[0]
-    articles: list[dict] = []
-    seen_urls: set[str] = set()
+    total_available = sum(len(v) for v in by_category.values())
+    categories = sorted(by_category.keys())   # stable alphabetical order
+    # index pointers per category (how many we've already consumed)
+    pointers: dict[str, int] = {c: 0 for c in categories}
 
-    try:
-        with open(latest, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    article = json.loads(line)
-                except json.JSONDecodeError as exc:
-                    errors.append(f"Skipped malformed JSON line in {latest}: {exc}")
-                    continue
-                url = article.get("url", "")
-                if url in seen_urls:
-                    continue
-                seen_urls.add(url)
-                articles.append(article)
-                if len(articles) >= count:
-                    break
-    except Exception as exc:
-        errors.append(f"Failed to read inbox file {latest}: {exc}")
-        return articles, errors
+    # --- round-robin pick ---
+    articles: list[dict] = []
+    while len(articles) < count:
+        added_this_round = 0
+        for cat in categories:
+            if len(articles) >= count:
+                break
+            idx = pointers[cat]
+            pool = by_category[cat]
+            if idx >= len(pool):
+                continue   # this category is exhausted
+            articles.append(pool[idx])
+            pointers[cat] += 1
+            added_this_round += 1
+        if added_this_round == 0:
+            # all categories exhausted
+            break
 
     if not articles:
-        errors.append(f"Inbox file {latest} was empty or had no valid records")
+        errors.append("All inbox articles were consumed before any could be selected")
     elif len(articles) < count:
         errors.append(
-            f"Inbox only had {len(articles)} article(s) (requested {count}). "
+            f"Inbox only had {total_available} article(s) across "
+            f"{len(categories)} category(ies) (requested {count}). "
             "Run C-Transit to refresh the inbox."
         )
         print(f"  [WARN] Inbox thin — writing {len(articles)} bundle(s) instead of {count}.")

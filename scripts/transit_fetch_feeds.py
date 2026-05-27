@@ -2,14 +2,13 @@
 """
 C-Transit -- RSS intake agent.
 
-Fetches SBA-related RSS, normalizes entries, writes to
-research/data/inbox/<source>_<YYYY-MM-DD>.jsonl.
+Fetches multiple RSS/Atom feeds across categories, normalizes entries, and
+writes to research/data/inbox/<slug>_<YYYY-MM-DD>.jsonl (one file per feed).
 
-One record per entry: {title, url, body, source, fetched_at}
+Feed registry: research/feeds.toml  (override with --feeds-config)
+  Each entry: name, url, category, enabled (bool)
 
-Primary feed: SBA Blog (https://www.sba.gov/blog/feed)
-Fallback:     Federal Register SBA documents RSS (used if primary returns non-200)
-              -- SBA removed their blog RSS; FR covers SBA regulatory notices.
+Record schema: {title, url, body, source, source_name, category, fetched_at}
 
 Body extraction strategy:
   - Federal Register URLs (federalregister.gov): call the FR JSON API to get
@@ -26,6 +25,7 @@ Usage:
     python scripts/transit_fetch_feeds.py --limit 5 --body-delay 1.5
     python scripts/transit_fetch_feeds.py --no-body
     python scripts/transit_fetch_feeds.py --max-body-chars 4000
+    python scripts/transit_fetch_feeds.py --feeds-config research/feeds.toml
 """
 
 import argparse
@@ -33,6 +33,7 @@ import json
 import re
 import sys
 import time
+import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,16 +43,10 @@ from bs4 import BeautifulSoup
 
 HERE       = Path(__file__).resolve().parent.parent   # repo root
 INBOX_DIR  = HERE / "research" / "data" / "inbox"
+DEFAULT_FEEDS_CONFIG = HERE / "research" / "feeds.toml"
 
 sys.path.insert(0, str(HERE / "research"))
 from _logs.log_run import log as log_run  # noqa: E402
-
-SBA_PRIMARY_URL = "https://www.sba.gov/blog/feed"
-SBA_FALLBACK_URL = (
-    "https://www.federalregister.gov/api/v1/documents.rss"
-    "?conditions[agencies][]=small-business-administration&per_page=20"
-)
-SOURCE_NAME = "sba"
 
 # Body extraction settings (overridable via CLI)
 DEFAULT_MAX_BODY_CHARS = 8_000
@@ -199,44 +194,73 @@ def fetch_article_body(
 
 
 # ---------------------------------------------------------------------------
-# Core pipeline
+# Feed config loading
 # ---------------------------------------------------------------------------
 
-def fetch_entries(
+def load_feeds(config_path: Path) -> list[dict]:
+    """
+    Load feeds from a TOML file. Returns list of enabled feed dicts.
+    Each dict has: name, url, category, enabled.
+    """
+    with open(config_path, "rb") as f:
+        data = tomllib.load(f)
+
+    all_feeds = data.get("feeds", [])
+    enabled = [fd for fd in all_feeds if fd.get("enabled", True)]
+    print(f"  Loaded {len(enabled)} enabled feed(s) from {config_path} "
+          f"({len(all_feeds) - len(enabled)} disabled)")
+    return enabled
+
+
+def _feed_slug(name: str) -> str:
+    """Convert a feed name to a filesystem-safe slug."""
+    slug = name.lower()
+    slug = re.sub(r"[^a-z0-9]+", "_", slug)
+    slug = slug.strip("_")
+    return slug
+
+
+# ---------------------------------------------------------------------------
+# Core pipeline (per-feed)
+# ---------------------------------------------------------------------------
+
+def fetch_feed_entries(
+    feed_cfg: dict,
     limit: int,
     fetch_body: bool,
     body_delay: float,
     max_body_chars: int,
 ) -> tuple[list[dict], list[str]]:
-    """Fetch SBA RSS entries + (optionally) article bodies. Returns (records, errors)."""
+    """
+    Fetch entries for one feed config dict.
+    Returns (records, errors).
+
+    Each record: {title, url, body, source, source_name, category, fetched_at}
+    """
     errors: list[str] = []
     now = datetime.now(timezone.utc).isoformat()
+    name     = feed_cfg["name"]
+    url      = feed_cfg["url"]
+    category = feed_cfg["category"]
+    slug     = _feed_slug(name)
 
-    # --- Step 1: fetch and parse the RSS feed ---
-    raw, status = _fetch_raw_text(SBA_PRIMARY_URL)
+    # Fetch and parse RSS/Atom
+    raw, status = _fetch_raw_text(url)
     feed = feedparser.parse(raw)
 
     if status != 200 or not feed.entries:
-        msg = (
-            f"Primary SBA RSS returned status={status} with {len(feed.entries)} entries. "
-            f"Falling back to Federal Register SBA feed."
-        )
+        msg = f"[{name}] Feed returned status={status} with {len(feed.entries)} entries — skipping."
         errors.append(msg)
         print(f"  [WARN] {msg}")
-        raw, status = _fetch_raw_text(SBA_FALLBACK_URL)
-        feed = feedparser.parse(raw)
-        if not feed.entries:
-            errors.append(f"Fallback feed also returned 0 entries (status={status}).")
-            return [], errors
+        return [], errors
 
     entries = feed.entries[:limit]
+    print(f"  [{name}] {len(entries)} entries (of {len(feed.entries)} in feed)")
 
-    # --- Step 2: for each entry, pull body if requested ---
     records = []
-
     with httpx.Client(follow_redirects=True, timeout=30) as client:
         for i, entry in enumerate(entries):
-            # Seed body from RSS metadata (summary / content fields)
+            # Seed body from RSS metadata
             rss_body = ""
             if hasattr(entry, "summary"):
                 rss_body = entry.summary or ""
@@ -244,38 +268,39 @@ def fetch_entries(
                 rss_body = entry.content[0].get("value", rss_body)
             rss_body = rss_body.strip()
 
-            url   = entry.get("link", "").strip()
+            article_url   = entry.get("link", "").strip()
             title = entry.get("title", "").strip()
             body  = rss_body
             body_error: str | None = None
 
-            if fetch_body and url:
+            if fetch_body and article_url:
                 t0 = time.monotonic()
-                fetched, body_error = fetch_article_body(url, client, max_body_chars)
+                fetched, body_error = fetch_article_body(article_url, client, max_body_chars)
                 elapsed_ms = int((time.monotonic() - t0) * 1000)
 
                 if body_error:
-                    print(f"  [WARN] body fetch failed ({elapsed_ms}ms): {body_error}")
-                    errors.append(f"[{title[:60]}] {body_error}")
-                    # Keep rss_body as fallback; add error annotation
+                    print(f"    [WARN] body fetch failed ({elapsed_ms}ms): {body_error}")
+                    errors.append(f"[{name}][{title[:60]}] {body_error}")
                     body = rss_body
                 elif fetched:
                     body = fetched
-                    print(f"  [OK]   body fetched ({elapsed_ms}ms, {len(body)} chars): {title[:60]}")
+                    print(f"    [OK]   body fetched ({elapsed_ms}ms, {len(body)} chars): {title[:60]}")
                 else:
                     body = rss_body
-                    print(f"  [WARN] body empty after fetch ({elapsed_ms}ms): {title[:60]}")
+                    print(f"    [WARN] body empty after fetch ({elapsed_ms}ms): {title[:60]}")
 
                 # Polite delay between article fetches (skip after last entry)
                 if i < len(entries) - 1 and body_delay > 0:
                     time.sleep(body_delay)
 
             rec: dict = {
-                "title":      title,
-                "url":        url,
-                "body":       body,
-                "source":     SOURCE_NAME,
-                "fetched_at": now,
+                "title":       title,
+                "url":         article_url,
+                "body":        body,
+                "source":      slug,
+                "source_name": name,
+                "category":    category,
+                "fetched_at":  now,
             }
             if body_error:
                 rec["body_error"] = body_error
@@ -285,11 +310,11 @@ def fetch_entries(
     return records, errors
 
 
-def write_inbox(records: list[dict], source: str) -> Path:
+def write_inbox(records: list[dict], slug: str) -> Path:
     """Write records to dated JSONL in inbox dir. Returns output path."""
     INBOX_DIR.mkdir(parents=True, exist_ok=True)
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    out_path = INBOX_DIR / f"{source}_{date_str}.jsonl"
+    out_path = INBOX_DIR / f"{slug}_{date_str}.jsonl"
 
     with open(out_path, "w", encoding="utf-8") as f:
         for rec in records:
@@ -298,11 +323,15 @@ def write_inbox(records: list[dict], source: str) -> Path:
     return out_path
 
 
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="C-Transit: fetch SBA RSS feed")
+    parser = argparse.ArgumentParser(description="C-Transit: fetch multiple RSS feeds")
     parser.add_argument(
         "--limit", type=int, default=20,
-        help="Max entries to fetch (default: 20)",
+        help="Max entries per feed to fetch (default: 20)",
     )
     parser.add_argument(
         "--no-body", action="store_true",
@@ -318,26 +347,62 @@ def main() -> None:
         metavar="N",
         help=f"Truncate article bodies to N characters (default: {DEFAULT_MAX_BODY_CHARS})",
     )
+    parser.add_argument(
+        "--feeds-config", type=Path, default=DEFAULT_FEEDS_CONFIG,
+        metavar="PATH",
+        help=f"Path to feeds TOML config (default: {DEFAULT_FEEDS_CONFIG})",
+    )
     args = parser.parse_args()
 
     started_at = datetime.now(timezone.utc)
     fetch_body = not args.no_body
+
     print(
-        f"C-Transit: fetching SBA feed "
-        f"(limit={args.limit}, body={'yes' if fetch_body else 'no'}, "
+        f"C-Transit: multi-feed intake "
+        f"(limit={args.limit}/feed, body={'yes' if fetch_body else 'no'}, "
         f"delay={args.body_delay}s, max_chars={args.max_body_chars})"
     )
 
-    entries, errors = fetch_entries(
-        limit=args.limit,
-        fetch_body=fetch_body,
-        body_delay=args.body_delay,
-        max_body_chars=args.max_body_chars,
-    )
-    out_path = write_inbox(entries, SOURCE_NAME)
-    print(f"  Wrote {len(entries)} records -> {out_path}")
+    feeds = load_feeds(args.feeds_config)
+    if not feeds:
+        print("[ERROR] No enabled feeds found in config. Exiting.")
+        log_run("c-transit", started_at, record_count=0,
+                errors=["No enabled feeds in config"])
+        return
 
-    log_run("c-transit", started_at, record_count=len(entries), errors=errors or None)
+    all_errors: list[str] = []
+    total_records = 0
+
+    for feed_cfg in feeds:
+        name = feed_cfg["name"]
+        category = feed_cfg["category"]
+        slug = _feed_slug(name)
+        print(f"\nFeed: {name} [{category}]")
+
+        records, errors = fetch_feed_entries(
+            feed_cfg=feed_cfg,
+            limit=args.limit,
+            fetch_body=fetch_body,
+            body_delay=args.body_delay,
+            max_body_chars=args.max_body_chars,
+        )
+        all_errors.extend(errors)
+
+        if records:
+            out_path = write_inbox(records, slug)
+            print(f"  Wrote {len(records)} records -> {out_path}")
+            total_records += len(records)
+        else:
+            print(f"  No records written for {name}")
+
+    print(f"\nC-Transit: {total_records} total records across {len(feeds)} feed(s)")
+
+    log_run(
+        "c-transit",
+        started_at,
+        record_count=total_records,
+        errors=all_errors or None,
+    )
 
 
 if __name__ == "__main__":
