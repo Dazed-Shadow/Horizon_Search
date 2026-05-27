@@ -1,33 +1,29 @@
 #!/usr/bin/env python3
 """
-C-SPOTTER (thin) -- SBA small business finder.
+C-SPOTTER -- SBA small business finder (Playwright edition).
 
-Queries SBA Dynamic Small Business Search (DSBS) for businesses
-under the 5 pipeline NAICS codes. Returns {name, naics, url} per
-business -- social and financial enrichment deferred to spotter_enrich.py (v0.1).
+Queries https://search.certifications.sba.gov/ using a headless Chromium
+browser to bypass the React SPA wall that blocked the httpx-only prototype.
+Searches by NAICS code, waits for the results table to hydrate, paginates,
+and writes {name, naics, url} records to JSONL.
 
-BLOCKER NOTE (2026-05-26): Both DSBS endpoints (dsbs.sba.gov and
-search.certifications.sba.gov) are React SPAs that require JavaScript rendering.
-Plain httpx + BeautifulSoup cannot parse them -- there is no fallback JSON API.
-This script logs the blocker, writes an empty output file, and exits 0 so the
-timing infrastructure still runs end-to-end. Resolution: headless browser (Playwright)
-or wait for SBA to publish a public REST API. See DECISIONS.md for next step.
-
-Writes: research/data/candidates/spotter_<YYYY-MM-DD>.jsonl  (may be empty)
+Writes: research/data/candidates/spotter_<YYYY-MM-DD>.jsonl  (one JSON per line)
 
 Usage:
     python scripts/spotter_find.py
     python scripts/spotter_find.py --limit-per-naics 5
+    python scripts/spotter_find.py --limit-per-naics 3 --headed
+    python scripts/spotter_find.py --delay-seconds 2.0
 """
 
 import argparse
 import json
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import httpx
-from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 HERE           = Path(__file__).resolve().parent.parent   # repo root
 CANDIDATES_DIR = HERE / "research" / "data" / "candidates"
@@ -35,7 +31,9 @@ CANDIDATES_DIR = HERE / "research" / "data" / "candidates"
 sys.path.insert(0, str(HERE / "research"))
 from _logs.log_run import log as log_run  # noqa: E402
 
+# ---------------------------------------------------------------------------
 # Pipeline NAICS -- mirrors fetch_expiring.py / AGENTS.md
+# ---------------------------------------------------------------------------
 PIPELINE_NAICS = {
     "561110": "Office Administrative Services",
     "561990": "All Other Support Services",
@@ -44,84 +42,189 @@ PIPELINE_NAICS = {
     "493110": "General Warehousing & Storage",
 }
 
-# SBA DSBS / certifications search endpoints
-# Both are React SPAs requiring JS rendering -- plain HTML scrape is not viable.
-DSBS_URL  = "https://dsbs.sba.gov/search/dsp_dsbs.cfm"
-CERT_URL  = "https://search.certifications.sba.gov/s/search/All"
+CERT_BASE_URL = "https://search.certifications.sba.gov/"
 
-SPA_MARKER = "<div id=\"root\"></div>"   # fingerprint of JS-only shell page
+# Real Chrome 124 UA on Windows -- minimises bot-detection surface
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-}
+# Selector that indicates results have hydrated
+RESULTS_ROW_SELECTOR = "table tbody tr"
+# Selector for the search / NAICS input field
+# We'll try multiple candidate selectors and use the first one that matches
+NAICS_INPUT_CANDIDATES = [
+    "input[placeholder*='NAICS']",
+    "input[aria-label*='NAICS']",
+    "input[name*='naics']",
+    "input[id*='naics']",
+    "input[type='search']",
+    "input[type='text']",
+]
+
+# How long to wait for the results table after submitting a search (ms)
+RESULT_WAIT_TIMEOUT_MS = 15_000
 
 
-def _is_spa_shell(html: str) -> bool:
-    """Return True if the response is a JS-only SPA shell with no server-rendered data."""
-    return SPA_MARKER in html or len(BeautifulSoup(html, "html.parser").get_text(strip=True)) < 100
+# ---------------------------------------------------------------------------
+# Browser helpers
+# ---------------------------------------------------------------------------
+
+def _find_input(page, candidates: list[str]):
+    """Return the first input selector that resolves on the page, or None."""
+    for sel in candidates:
+        try:
+            if page.locator(sel).count() > 0:
+                return sel
+        except Exception:
+            continue
+    return None
 
 
-def search_dsbs(client: httpx.Client, naics: str, limit: int) -> tuple[list[dict], list[str]]:
+def _extract_rows(page, naics: str, limit: int, base_url: str) -> list[dict]:
     """
-    Attempt to query DSBS for a single NAICS code.
-    Returns (records, errors).
+    Pull business records from the currently-visible results table.
+    Returns up to `limit` records as {name, naics, url}.
     """
-    errors:  list[str]  = []
+    records: list[dict] = []
+    rows = page.locator(RESULTS_ROW_SELECTOR).all()
+
+    for row in rows:
+        if len(records) >= limit:
+            break
+        try:
+            # Try to grab a link inside the row (business profile link)
+            link = row.locator("a").first
+            if link.count() > 0:
+                name = link.inner_text().strip()
+                href = link.get_attribute("href") or ""
+                if href.startswith("http"):
+                    url = href
+                elif href.startswith("/"):
+                    url = base_url.rstrip("/") + href
+                else:
+                    url = base_url
+            else:
+                # Fallback: grab first cell text as name, use base search URL
+                cells = row.locator("td").all()
+                if not cells:
+                    continue
+                name = cells[0].inner_text().strip()
+                url = base_url
+
+            if not name or name.lower() in ("", "name", "business name"):
+                continue
+
+            records.append({"name": name, "naics": naics, "url": url})
+        except Exception:
+            continue
+
+    return records
+
+
+def _search_naics(
+    page,
+    naics: str,
+    label: str,
+    limit: int,
+    errors: list[str],
+) -> list[dict]:
+    """
+    Navigate to the SBA cert search, enter a NAICS code, wait for results,
+    and extract up to `limit` businesses.  Paginates via Next button if needed.
+    Returns list of {name, naics, url} dicts.
+    """
     records: list[dict] = []
 
-    params = {
-        "SB_SIZE":       "S",
-        "NAICS_CODE":    naics,
-        "ROWS":          str(limit),
-        "START_ROW":     "1",
-        "DB_SORT_ORDER": "LEGALNAME",
-        "DB_SORT_DIR":   "ASC",
-    }
-
     try:
-        resp = client.get(DSBS_URL, params=params, headers=HEADERS, timeout=30)
-
-        if resp.status_code != 200:
-            errors.append(f"DSBS returned HTTP {resp.status_code} for NAICS {naics}")
-            return records, errors
-
-        if _is_spa_shell(resp.text):
-            errors.append(
-                f"BLOCKER: DSBS is a React SPA -- requires JS rendering (Playwright). "
-                f"NAICS {naics} returned no server-rendered data."
-            )
-            return records, errors
-
-        # If we ever get real HTML (e.g. SBA re-enables server rendering), parse it.
-        soup = BeautifulSoup(resp.text, "html.parser")
-        seen: set[str] = set()
-        for a_tag in soup.find_all("a", href=True):
-            href = a_tag["href"]
-            if "dsp_profile.cfm" in href or "dsp_dsbs_detail" in href:
-                name = a_tag.get_text(strip=True)
-                if not name or name in seen:
-                    continue
-                seen.add(name)
-                full_url = href if href.startswith("http") else "https://dsbs.sba.gov" + href
-                records.append({"name": name, "naics": naics, "url": full_url})
-                if len(records) >= limit:
-                    break
-
-        if not records:
-            errors.append(f"DSBS: page returned HTML but no profile links for NAICS {naics}")
-
-    except httpx.TimeoutException:
-        errors.append(f"DSBS timeout for NAICS {naics}")
+        page.goto(CERT_BASE_URL, wait_until="domcontentloaded", timeout=30_000)
     except Exception as exc:
-        errors.append(f"DSBS error for NAICS {naics}: {exc}")
+        errors.append(f"NAICS {naics}: failed to load {CERT_BASE_URL} -- {exc}")
+        return records
 
-    return records, errors
+    # Check for anti-bot / captcha pages
+    body_text = page.locator("body").inner_text()
+    if any(kw in body_text.lower() for kw in ("captcha", "verify you are human", "access denied", "cloudflare")):
+        errors.append(
+            f"NAICS {naics}: anti-bot interstitial detected on page load. "
+            "Saving whatever records exist and stopping gracefully."
+        )
+        return records
 
+    # ---- Locate the NAICS input ----
+    input_sel = _find_input(page, NAICS_INPUT_CANDIDATES)
+    if not input_sel:
+        # Try to find ANY visible text input as last resort
+        errors.append(
+            f"NAICS {naics}: could not locate NAICS search input on page. "
+            "Page structure may have changed. Skipping this code."
+        )
+        return records
+
+    # ---- Enter the NAICS code and search ----
+    try:
+        page.locator(input_sel).first.click()
+        page.keyboard.press("Control+a")
+        page.keyboard.type(naics)
+        page.keyboard.press("Enter")
+    except Exception as exc:
+        errors.append(f"NAICS {naics}: error entering search term -- {exc}")
+        return records
+
+    # ---- Wait for results table to hydrate ----
+    try:
+        page.wait_for_selector(RESULTS_ROW_SELECTOR, timeout=RESULT_WAIT_TIMEOUT_MS)
+    except PlaywrightTimeoutError:
+        # Check if it's a captcha / rate-limit page
+        body_text = page.locator("body").inner_text()
+        if any(kw in body_text.lower() for kw in ("captcha", "verify you are human", "access denied", "rate limit")):
+            errors.append(
+                f"NAICS {naics}: anti-bot / rate-limit wall after search. "
+                "Saving whatever records collected so far."
+            )
+        else:
+            errors.append(
+                f"NAICS {naics}: results table selector '{RESULTS_ROW_SELECTOR}' "
+                f"not found within {RESULT_WAIT_TIMEOUT_MS}ms. "
+                "Page may have no results or selector changed."
+            )
+        return records
+    except Exception as exc:
+        errors.append(f"NAICS {naics}: unexpected error waiting for results -- {exc}")
+        return records
+
+    # ---- Paginate until we have `limit` records ----
+    page_num = 1
+    while len(records) < limit:
+        batch = _extract_rows(page, naics, limit - len(records), CERT_BASE_URL)
+        records.extend(batch)
+
+        if len(records) >= limit:
+            break
+
+        # Look for a "Next" pagination button
+        next_btn = page.locator("button:has-text('Next'), a:has-text('Next'), [aria-label='Next']").first
+        try:
+            if next_btn.count() > 0 and next_btn.is_enabled():
+                next_btn.click()
+                try:
+                    page.wait_for_selector(RESULTS_ROW_SELECTOR, timeout=RESULT_WAIT_TIMEOUT_MS)
+                    page_num += 1
+                except PlaywrightTimeoutError:
+                    break
+            else:
+                break
+        except Exception:
+            break
+
+    return records[:limit]
+
+
+# ---------------------------------------------------------------------------
+# Output
+# ---------------------------------------------------------------------------
 
 def write_candidates(records: list[dict]) -> Path:
     CANDIDATES_DIR.mkdir(parents=True, exist_ok=True)
@@ -135,11 +238,23 @@ def write_candidates(records: list[dict]) -> Path:
     return out_path
 
 
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="C-SPOTTER: find SBA small businesses by NAICS")
     parser.add_argument(
         "--limit-per-naics", type=int, default=10,
         help="Max businesses per NAICS code (default: 10)",
+    )
+    parser.add_argument(
+        "--headed", action="store_true",
+        help="Run with visible browser window (for debugging)",
+    )
+    parser.add_argument(
+        "--delay-seconds", type=float, default=1.5,
+        help="Seconds to wait between NAICS code searches (default: 1.5)",
     )
     args = parser.parse_args()
 
@@ -147,28 +262,68 @@ def main() -> None:
     all_records: list[dict] = []
     all_errors:  list[str]  = []
 
-    print(f"C-SPOTTER: querying DSBS for {len(PIPELINE_NAICS)} NAICS codes "
-          f"(limit {args.limit_per_naics}/code)")
+    print(
+        f"C-SPOTTER: querying SBA cert search for {len(PIPELINE_NAICS)} NAICS codes "
+        f"(limit {args.limit_per_naics}/code, {'headed' if args.headed else 'headless'})"
+    )
 
-    with httpx.Client(follow_redirects=True) as client:
-        for i, (naics, label) in enumerate(PIPELINE_NAICS.items(), 1):
-            print(f"  [{i}/{len(PIPELINE_NAICS)}] {naics} -- {label}")
-            records, errors = search_dsbs(client, naics, args.limit_per_naics)
+    # ---- Launch Playwright ----
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=not args.headed)
+        context = browser.new_context(
+            user_agent=USER_AGENT,
+            locale="en-US",
+            viewport={"width": 1280, "height": 900},
+        )
+        page = context.new_page()
+
+        # Stealth: remove webdriver property (basic anti-detection)
+        page.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+        )
+
+        naics_items = list(PIPELINE_NAICS.items())
+        for i, (naics, label) in enumerate(naics_items, 1):
+            print(f"  [{i}/{len(naics_items)}] {naics} -- {label}")
+            records = _search_naics(page, naics, label, args.limit_per_naics, all_errors)
             all_records.extend(records)
-            all_errors.extend(errors)
             status_str = f"{len(records)} businesses" if records else "0 (see errors)"
             print(f"    {status_str}")
-            if errors:
-                for e in errors:
+
+            # Print any new errors for this NAICS
+            if all_errors:
+                new_errs = [e for e in all_errors if naics in e]
+                for e in new_errs:
                     print(f"    [WARN] {e}")
+
+            # Bail early if we hit a persistent anti-bot wall
+            anti_bot_wall = any(
+                "anti-bot" in e or "captcha" in e or "rate-limit" in e
+                for e in all_errors
+            )
+            if anti_bot_wall:
+                print("  [STOP] Anti-bot / captcha wall detected -- stopping early and saving partial results.")
+                all_errors.append("Stopped early due to anti-bot wall.")
+                break
+
+            # Delay between NAICS codes
+            if i < len(naics_items):
+                time.sleep(args.delay_seconds)
+
+        context.close()
+        browser.close()
 
     out_path = write_candidates(all_records)
     print(f"\nTotal: {len(all_records)} candidates -> {out_path}")
     if not all_records:
-        print("[INFO] Empty output -- DSBS SPA wall. See script header for resolution path.")
+        print("[INFO] Zero records -- check errors above.")
 
-    log_run("c-spotter", started_at, record_count=len(all_records),
-            errors=all_errors if all_errors else None)
+    log_run(
+        "c-spotter",
+        started_at,
+        record_count=len(all_records),
+        errors=all_errors if all_errors else None,
+    )
 
 
 if __name__ == "__main__":
