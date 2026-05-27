@@ -17,7 +17,7 @@ import httpx
 import os
 import time
 from calendar import monthrange
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional
 
 from models.insights import (
@@ -83,7 +83,7 @@ def _month_label(year: int, month: int) -> str:
 
 def _build_month_sequence(lookback: int) -> list[tuple[int, int]]:
     """Return list of (year, month) tuples, oldest first, for the past N months."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     year, month = now.year, now.month
     months: list[tuple[int, int]] = []
     for _ in range(lookback):
@@ -105,7 +105,7 @@ async def _fetch_month_count(
     client: httpx.AsyncClient,
     sem: asyncio.Semaphore,
 ) -> int:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     is_current = (year == now.year and month == now.month)
     ttl = _TTL_CURRENT if is_current else _TTL_HISTORICAL
     key = _cache_key(naics, set_aside, f"{year:04d}-{month:02d}")
@@ -385,7 +385,7 @@ async def get_naics_activity(
     set_aside_label = SET_ASIDE_LABELS.get(set_aside) if set_aside else None
     month_pairs = _build_month_sequence(lookback_months)
     sa = set_aside or ""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     sem = asyncio.Semaphore(3)
 

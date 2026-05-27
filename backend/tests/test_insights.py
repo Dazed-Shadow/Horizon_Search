@@ -116,8 +116,8 @@ async def test_insight_sam_error_returns_502(client):
 @respx.mock
 async def test_insight_avg_excludes_current_month(client):
     """avg_per_month is the mean of complete months only (current partial month excluded)."""
-    from datetime import datetime
-    now = datetime.utcnow()
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
     current_key = f"{now.year:04d}-{now.month:02d}"
 
     def handler(request):

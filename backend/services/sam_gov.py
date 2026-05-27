@@ -3,7 +3,7 @@ import hashlib
 import httpx
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from models.contract import Contract, ContractSearchResult, ContactInfo
@@ -189,12 +189,12 @@ async def search_contracts(
     if posted_from:
         params["postedFrom"] = posted_from
     else:
-        params["postedFrom"] = (datetime.utcnow() - timedelta(days=90)).strftime(fmt)
+        params["postedFrom"] = (datetime.now(timezone.utc) - timedelta(days=90)).strftime(fmt)
 
     if posted_to:
         params["postedTo"] = posted_to
     else:
-        params["postedTo"] = datetime.utcnow().strftime(fmt)
+        params["postedTo"] = datetime.now(timezone.utc).strftime(fmt)
 
     # Return cached result if still fresh
     key = _cache_key(params)
@@ -235,8 +235,8 @@ async def _count_by_set_aside(set_aside: str, api_key: str, client: httpx.AsyncC
         "typeOfSetAside": set_aside,
         "limit": 1,
         "offset": 0,
-        "postedFrom": (datetime.utcnow() - timedelta(days=90)).strftime(fmt),
-        "postedTo": datetime.utcnow().strftime(fmt),
+        "postedFrom": (datetime.now(timezone.utc) - timedelta(days=90)).strftime(fmt),
+        "postedTo": datetime.now(timezone.utc).strftime(fmt),
     }
     try:
         r = await client.get(SAM_BASE, params=params)
@@ -276,8 +276,8 @@ async def get_contract_by_notice_id(notice_id: str) -> Optional[Contract]:
         "noticeid": notice_id,
         "limit": 1,
         "offset": 0,
-        "postedFrom": (datetime.utcnow() - timedelta(days=365)).strftime(fmt),
-        "postedTo": datetime.utcnow().strftime(fmt),
+        "postedFrom": (datetime.now(timezone.utc) - timedelta(days=365)).strftime(fmt),
+        "postedTo": datetime.now(timezone.utc).strftime(fmt),
     }
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.get(SAM_BASE, params=params)
