@@ -9,9 +9,23 @@ and writes {name, naics, url} records to JSONL.
 
 Writes: research/data/candidates/spotter_<YYYY-MM-DD>.jsonl  (one JSON per line)
 
+Two modes:
+  pipeline mode (default) — writes to candidates/ and logs timing via log_run.
+  ad-hoc mode (--ad-hoc)  — prints results to stdout only; no file writes, no log entry.
+
 Usage:
+    # Pipeline (all 5 NAICS codes):
     python scripts/spotter_find.py
     python scripts/spotter_find.py --limit-per-naics 5
+
+    # Pipeline (specific NAICS codes):
+    python scripts/spotter_find.py 561110 561990
+
+    # Ad-hoc exploration (stdout only, no log, no candidate file):
+    python scripts/spotter_find.py --ad-hoc 561110
+    python scripts/spotter_find.py --ad-hoc --limit-per-naics 2 561110 541611
+
+    # Other options:
     python scripts/spotter_find.py --limit-per-naics 3 --headed
     python scripts/spotter_find.py --delay-seconds 2.0
 """
@@ -239,11 +253,55 @@ def write_candidates(records: list[dict]) -> Path:
 
 
 # ---------------------------------------------------------------------------
+# Ad-hoc output formatter
+# ---------------------------------------------------------------------------
+
+def _print_adhoc_results(records: list[dict], errors: list[str]) -> None:
+    """Print results to stdout in a readable table. Used by --ad-hoc mode."""
+    if not records:
+        print("\n  (no results)")
+    else:
+        # Column widths
+        col_name  = max((len(r["name"])  for r in records), default=20)
+        col_naics = max((len(r["naics"]) for r in records), default=10)
+        col_name  = max(col_name, 20)
+        col_naics = max(col_naics, 6)
+
+        header = f"  {'Business Name':<{col_name}}  {'NAICS':<{col_naics}}  URL"
+        sep    = "  " + "-" * (col_name) + "  " + "-" * col_naics + "  " + "-" * 40
+        print(header)
+        print(sep)
+        for r in records:
+            print(f"  {r['name']:<{col_name}}  {r['naics']:<{col_naics}}  {r['url']}")
+
+    if errors:
+        print("\n  [WARNINGS]")
+        for e in errors:
+            print(f"    {e}")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="C-SPOTTER: find SBA small businesses by NAICS")
+    parser.add_argument(
+        "naics_codes", nargs="*", metavar="NAICS",
+        help=(
+            "NAICS codes to search (positional). "
+            "If omitted, uses the 5 pipeline codes. "
+            "Example: 561110 541611"
+        ),
+    )
+    parser.add_argument(
+        "--ad-hoc", action="store_true",
+        help=(
+            "Ad-hoc mode: print results to stdout only. "
+            "Skips writing to candidates/ and skips log_run. "
+            "Use for one-off exploration without polluting pipeline artifacts."
+        ),
+    )
     parser.add_argument(
         "--limit-per-naics", type=int, default=10,
         help="Max businesses per NAICS code (default: 10)",
@@ -258,12 +316,20 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # ---- Resolve NAICS target set ----
+    if args.naics_codes:
+        # Positional args: build label map, unknown codes get their code as label
+        naics_items = [(code, PIPELINE_NAICS.get(code, code)) for code in args.naics_codes]
+    else:
+        naics_items = list(PIPELINE_NAICS.items())
+
     started_at  = datetime.now(timezone.utc)
     all_records: list[dict] = []
     all_errors:  list[str]  = []
 
+    mode_label = "ad-hoc" if args.ad_hoc else "pipeline"
     print(
-        f"C-SPOTTER: querying SBA cert search for {len(PIPELINE_NAICS)} NAICS codes "
+        f"C-SPOTTER [{mode_label}]: querying SBA cert search for {len(naics_items)} NAICS code(s) "
         f"(limit {args.limit_per_naics}/code, {'headed' if args.headed else 'headless'})"
     )
 
@@ -282,7 +348,6 @@ def main() -> None:
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
         )
 
-        naics_items = list(PIPELINE_NAICS.items())
         for i, (naics, label) in enumerate(naics_items, 1):
             print(f"  [{i}/{len(naics_items)}] {naics} -- {label}")
             records = _search_naics(page, naics, label, args.limit_per_naics, all_errors)
@@ -313,17 +378,22 @@ def main() -> None:
         context.close()
         browser.close()
 
-    out_path = write_candidates(all_records)
-    print(f"\nTotal: {len(all_records)} candidates -> {out_path}")
-    if not all_records:
-        print("[INFO] Zero records -- check errors above.")
-
-    log_run(
-        "c-spotter",
-        started_at,
-        record_count=len(all_records),
-        errors=all_errors if all_errors else None,
-    )
+    # ---- Output -- diverges by mode ----
+    if args.ad_hoc:
+        print(f"\nAd-hoc results ({len(all_records)} total):")
+        _print_adhoc_results(all_records, all_errors)
+        # No file write. No log_run entry.
+    else:
+        out_path = write_candidates(all_records)
+        print(f"\nTotal: {len(all_records)} candidates -> {out_path}")
+        if not all_records:
+            print("[INFO] Zero records -- check errors above.")
+        log_run(
+            "c-spotter",
+            started_at,
+            record_count=len(all_records),
+            errors=all_errors if all_errors else None,
+        )
 
 
 if __name__ == "__main__":

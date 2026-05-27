@@ -24,5 +24,7 @@ Thumbs.db
 # Notion backups — local snapshots only, never commit
 scripts/backups/
 
-# Claude Code internal working directory
-.claude/
+# Claude Code internal working directory (settings, session state -- not for VCS)
+# Un-ignore commands/ which are project artifacts (slash commands for /synth-batch etc.)
+.claude/*
+!.claude/commands
