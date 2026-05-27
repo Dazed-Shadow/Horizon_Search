@@ -7,8 +7,6 @@ import ContractPrimerPage from "./pages/ContractPrimerPage";
 import StartHerePage from "./pages/StartHerePage";
 import MissionPage from "./pages/MissionPage";
 import TrailblazersPage from "./pages/TrailblazersPage";
-import InsightsPage from "./pages/InsightsPage";
-
 export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -17,7 +15,6 @@ export default function App() {
         <Route path="/" element={<SearchPage />} />
         <Route path="/start" element={<StartHerePage />} />
         <Route path="/mission" element={<MissionPage />} />
-        <Route path="/insights" element={<InsightsPage />} />
         <Route path="/trailblazers" element={<TrailblazersPage />} />
         <Route path="/licensing" element={<LicensingPage />} />
         <Route path="/primer" element={<ContractPrimerPage />} />

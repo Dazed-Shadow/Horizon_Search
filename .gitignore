@@ -26,3 +26,6 @@ scripts/backups/
 
 # Claude Code internal working directory
 .claude/
+
+# Research data outputs (CSVs, raw API results) — scripts are tracked, data is not
+research/data/

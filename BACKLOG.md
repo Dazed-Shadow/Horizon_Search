@@ -38,7 +38,31 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
-## [2026-05-25] NAICS Insights — SQLite persistent cache + 24-month data
+## [2026-05-25] Market Intel — temporarily removed from site nav
+**Type:** Enhancement
+**Priority:** Medium — OPEN
+**Tags:** #frontend #ux #backend #deploy
+**Detail:** The `/insights` page was returning no data ("0 awards for past 2 years") for all 42 NAICS codes due to a data source mismatch — the insights service queries for all opportunity types rather than specifically Award Notices (ptype=a). The static JSON bundle also reflects this. The page was removed from the Navbar and App routes until the data is confirmed correct.
+**Next steps:**
+1. Validate award notice counts via `research/fetch_awards.py` locally — if award counts are non-zero, the static JSON needs to be regenerated with `ptype=a` filter.
+2. Update `backend/services/insights.py` to filter for award notices when generating the city/agency breakdown, or add a separate endpoint.
+3. Re-add `{ to: "/insights", label: "Market Intel" }` to `Navbar.jsx` and restore the route in `App.jsx` once data is validated.
+**See also:** `research/fetch_awards.py` — local script for deep analysis of award data by NAICS code and city.
+
+## [2026-05-25] Local research tooling — award analysis by NAICS + city
+**Type:** Feature
+**Priority:** High — COMPLETE
+**Tags:** #research #outreach #api
+**Detail:** Jon needs actionable data on where federal agencies award contracts by NAICS code and city to drive outreach to veteran business owners. A standalone Python script fetches Award Notices from SAM.gov, paginates through 24 months of results, and exports three CSVs for analysis:
+- `research/data/awards_raw.csv` — one row per award notice (city, state, agency, awardee, amount, set-aside)
+- `research/data/awards_by_city.csv` — NAICS × city × state: count + total $
+- `research/data/awards_by_agency.csv` — agency × NAICS: count + total $ + top cities
+**Usage:** `python research/fetch_awards.py` (all 42 codes) or `python research/fetch_awards.py 541512` (single code). Reads API key from `backend/.env` automatically.
+**Resolution:** `research/` directory added to .gitignore (CSVs and API data stay local). Script committed 2026-05-25.
+
+---
+
+## [2026-05-25] NAICS Insights — SQLite persistent cache + 24-month data — SQLite persistent cache + 24-month data
 **Type:** Enhancement
 **Priority:** High — COMPLETE (Hybrid resolution per Opus)
 **Tags:** #backend #frontend #perf #api
