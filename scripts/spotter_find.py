@@ -38,6 +38,7 @@ Usage:
 
 import argparse
 import json
+import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -69,6 +70,11 @@ DEFAULT_PROFILE_DELAY_SECONDS = 1.5
 
 # Profile page: how long to wait for the page to load before scraping fields
 PROFILE_WAIT_TIMEOUT_MS = 15_000
+
+# UEI is exactly 12 alphanumeric chars on SBA cert profiles, e.g. "UEI: H26KNRBSEX89".
+# SAM.gov canonical entity URL is deterministic given the UEI -- see D-015 Phase 2.
+UEI_RE = re.compile(r"UEI[:\s]+([A-Z0-9]{12})\b")
+SAM_ENTITY_URL_TEMPLATE = "https://sam.gov/entity/{uei}/coreData?status=Active"
 
 # Real Chrome 124 UA on Windows -- minimises bot-detection surface
 USER_AGENT = (
@@ -162,6 +168,9 @@ def _enrich_profile(page, record: dict, errors: list[str]) -> dict:
       Each field lives in a div containing an h5 label followed by a p value.
       We locate the h5 by text, then read the sibling p (or its child a).
       CSS class names are CSS-module hashed -- do not rely on them.
+
+    sam_profile_url is constructed from the UEI in the page body text rather
+    than calling the SAM.gov entity API -- see D-015 Phase 2.
     """
     enriched = dict(record)
     enriched.setdefault("cage_code", None)
@@ -265,14 +274,20 @@ def _enrich_profile(page, record: dict, errors: list[str]) -> dict:
     except Exception as exc:
         errors.append(f"  [enrich] {name}: contact_name extraction error -- {exc}")
 
-    # ---- SAM.gov profile URL (outbound link to sam.gov/entity) ----
+    # ---- SAM.gov profile URL ----
+    # Strategy (see D-015 Phase 2):
+    #   1. Look for an outbound sam.gov entity link (defensive -- SBA doesn't
+    #      currently emit one, but if they ever add it, prefer the real link).
+    #   2. Fall back to extracting the UEI from the profile body text and
+    #      constructing the canonical sam.gov entity URL.
+    # No API call -- HZ's SAM_GOV_API_KEY budget is reserved for the live
+    # frontend, not pipeline enrichment.
     try:
-        sam_links = page.locator("a[href*='sam.gov']").all()
         sam_url = None
+        sam_links = page.locator("a[href*='sam.gov']").all()
         for link in sam_links:
             try:
                 href = link.get_attribute("href") or ""
-                # Target entity profile pages, not generic sam.gov references
                 if "sam.gov" in href and (
                     "/entity/" in href or "/opp/" in href or "UEI" in href
                 ):
@@ -280,8 +295,19 @@ def _enrich_profile(page, record: dict, errors: list[str]) -> dict:
                     break
             except Exception:
                 continue
+
+        if sam_url is None:
+            try:
+                body_text = page.locator("body").inner_text()
+                match = UEI_RE.search(body_text)
+                if match:
+                    sam_url = SAM_ENTITY_URL_TEMPLATE.format(uei=match.group(1))
+                else:
+                    errors.append(f"  [enrich] {name}: UEI not found in profile body -- sam_profile_url null")
+            except Exception as exc:
+                errors.append(f"  [enrich] {name}: UEI extraction error -- {exc}")
+
         enriched["sam_profile_url"] = sam_url
-        # sam_profile_url being None is normal -- not all profiles link out
     except Exception as exc:
         errors.append(f"  [enrich] {name}: sam_profile_url extraction error -- {exc}")
 
