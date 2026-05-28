@@ -191,8 +191,12 @@ def parse_visual_md(visual_md: str) -> dict:
     if not visual_md:
         return result
 
-    # Extract code block for image prompt (between triple backtick fences)
-    prompt_match = re.search(r"### 🖼️ Suggested Image Prompt\n```\n(.*?)\n```", visual_md, re.DOTALL)
+    # Extract code block for image prompt (between triple backtick fences).
+    # Allow optional blank lines between the header and the opening fence.
+    prompt_match = re.search(
+        r"### 🖼️ Suggested Image Prompt\s*\n```\n(.*?)\n```",
+        visual_md, re.DOTALL
+    )
     if prompt_match:
         result["image_prompt"] = prompt_match.group(1).strip()
 
@@ -473,7 +477,7 @@ def build_html_article(article: dict, idx_of_total: str) -> str:
   <div class="section-label">🎨 Visual Direction</div>
   <div class="vd-section-head">🖋️ Writing</div>
   {writing_html}
-  <div class="vd-section-head">🎨 Visual</div>
+  <div class="vd-section-head">🎨 Visual Direction</div>
   {vis_html}
   <div class="vd-section-head">📐 Brand Integration</div>
   {brand_html}

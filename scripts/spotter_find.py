@@ -5,9 +5,14 @@ C-SPOTTER -- SBA small business finder (Playwright edition).
 Queries https://search.certifications.sba.gov/ using a headless Chromium
 browser to bypass the React SPA wall that blocked the httpx-only prototype.
 Searches by NAICS code, waits for the results table to hydrate, paginates,
-and writes {name, naics, url} records to JSONL.
+and writes enriched records to JSONL.
 
 Writes: research/data/candidates/spotter_<YYYY-MM-DD>.jsonl  (one JSON per line)
+
+Record shape (v2 -- enriched):
+  {name, naics, url, cage_code, business_website, email, contact_name, sam_profile_url}
+  New fields are additive -- old consumers reading only {name, naics, url} are unaffected.
+  Any field the profile doesn't expose is null; a per-record warning is printed.
 
 Two modes:
   pipeline mode (default) — writes to candidates/ and logs timing via log_run.
@@ -28,6 +33,7 @@ Usage:
     # Other options:
     python scripts/spotter_find.py --limit-per-naics 3 --headed
     python scripts/spotter_find.py --delay-seconds 2.0
+    python scripts/spotter_find.py --profile-delay-seconds 2.0
 """
 
 import argparse
@@ -57,6 +63,12 @@ PIPELINE_NAICS = {
 }
 
 CERT_BASE_URL = "https://search.certifications.sba.gov/"
+
+# Default per-profile page delay (seconds) -- profile dive adds N extra page loads
+DEFAULT_PROFILE_DELAY_SECONDS = 1.5
+
+# Profile page: how long to wait for the page to load before scraping fields
+PROFILE_WAIT_TIMEOUT_MS = 15_000
 
 # Real Chrome 124 UA on Windows -- minimises bot-detection surface
 USER_AGENT = (
@@ -136,6 +148,144 @@ def _extract_rows(page, naics: str, limit: int, base_url: str) -> list[dict]:
             continue
 
     return records
+
+
+def _enrich_profile(page, record: dict, errors: list[str]) -> dict:
+    """
+    Navigate to record["url"] (the SBA cert profile page) and extract enrichment
+    fields.  Returns the record dict with new keys added:
+        cage_code, business_website, email, contact_name, sam_profile_url
+    All new fields default to None; per-field failures are logged and do not
+    abort the record or the run.
+
+    DOM pattern discovered 2026-05-28:
+      Each field lives in a div containing an h5 label followed by a p value.
+      We locate the h5 by text, then read the sibling p (or its child a).
+      CSS class names are CSS-module hashed -- do not rely on them.
+    """
+    enriched = dict(record)
+    enriched.setdefault("cage_code", None)
+    enriched.setdefault("business_website", None)
+    enriched.setdefault("email", None)
+    enriched.setdefault("contact_name", None)
+    enriched.setdefault("sam_profile_url", None)
+
+    name = record.get("name", record.get("url", "?"))
+    profile_url = record.get("url", "")
+    if not profile_url:
+        errors.append(f"  [enrich] {name}: no profile URL -- skipping enrichment")
+        return enriched
+
+    try:
+        # The SBA cert profile is a React SPA; domcontentloaded fires before
+        # React renders the profile data.  Wait for a profile-specific element
+        # (an h5 inside the profile section) to confirm hydration.
+        page.goto(profile_url, wait_until="domcontentloaded", timeout=PROFILE_WAIT_TIMEOUT_MS)
+        page.wait_for_selector("h5", timeout=PROFILE_WAIT_TIMEOUT_MS)
+    except Exception as exc:
+        errors.append(f"  [enrich] {name}: failed to load profile page -- {exc}")
+        return enriched
+
+    def _read_label_value(label_text: str) -> str | None:
+        """Find the h5 whose text contains label_text; return the sibling p's text."""
+        try:
+            h5 = page.locator(f"h5:has-text('{label_text}')").first
+            if h5.count() == 0:
+                return None
+            # Sibling p is inside the same parent div
+            p = h5.locator("xpath=../p").first
+            if p.count() == 0:
+                return None
+            return p.inner_text().strip() or None
+        except Exception:
+            return None
+
+    def _read_label_link(label_text: str, attr: str = "href") -> str | None:
+        """Find the h5 by label_text; return the href on the child anchor in its sibling p."""
+        try:
+            h5 = page.locator(f"h5:has-text('{label_text}')").first
+            if h5.count() == 0:
+                return None
+            a = h5.locator("xpath=../p//a").first
+            if a.count() == 0:
+                return None
+            return a.get_attribute(attr) or None
+        except Exception:
+            return None
+
+    # ---- CAGE code ----
+    try:
+        val = _read_label_value("CAGE code")
+        enriched["cage_code"] = val
+        if val is None:
+            errors.append(f"  [enrich] {name}: cage_code not found on profile")
+    except Exception as exc:
+        errors.append(f"  [enrich] {name}: cage_code extraction error -- {exc}")
+
+    # ---- Business website (h5 "Website" but NOT "Additional website") ----
+    try:
+        # Playwright text selector does a substring match; filter to exact label
+        h5s = page.locator("h5").all()
+        website_val = None
+        for h5 in h5s:
+            try:
+                txt = h5.inner_text().strip()
+                if txt == "Website":
+                    a = h5.locator("xpath=../p//a").first
+                    if a.count() > 0:
+                        website_val = a.get_attribute("href") or None
+                    break
+            except Exception:
+                continue
+        enriched["business_website"] = website_val
+        if website_val is None:
+            errors.append(f"  [enrich] {name}: business_website not found on profile")
+    except Exception as exc:
+        errors.append(f"  [enrich] {name}: business_website extraction error -- {exc}")
+
+    # ---- Email (h5 "Email address"; link is mailto:) ----
+    try:
+        href = _read_label_link("Email address")
+        if href and href.startswith("mailto:"):
+            enriched["email"] = href[len("mailto:"):]
+        elif href:
+            enriched["email"] = href
+        else:
+            enriched["email"] = None
+            errors.append(f"  [enrich] {name}: email not found on profile")
+    except Exception as exc:
+        errors.append(f"  [enrich] {name}: email extraction error -- {exc}")
+
+    # ---- Contact name (h5 "Contact person") ----
+    try:
+        val = _read_label_value("Contact person")
+        enriched["contact_name"] = val
+        if val is None:
+            errors.append(f"  [enrich] {name}: contact_name not found on profile")
+    except Exception as exc:
+        errors.append(f"  [enrich] {name}: contact_name extraction error -- {exc}")
+
+    # ---- SAM.gov profile URL (outbound link to sam.gov/entity) ----
+    try:
+        sam_links = page.locator("a[href*='sam.gov']").all()
+        sam_url = None
+        for link in sam_links:
+            try:
+                href = link.get_attribute("href") or ""
+                # Target entity profile pages, not generic sam.gov references
+                if "sam.gov" in href and (
+                    "/entity/" in href or "/opp/" in href or "UEI" in href
+                ):
+                    sam_url = href
+                    break
+            except Exception:
+                continue
+        enriched["sam_profile_url"] = sam_url
+        # sam_profile_url being None is normal -- not all profiles link out
+    except Exception as exc:
+        errors.append(f"  [enrich] {name}: sam_profile_url extraction error -- {exc}")
+
+    return enriched
 
 
 def _search_naics(
@@ -314,6 +464,14 @@ def main() -> None:
         "--delay-seconds", type=float, default=1.5,
         help="Seconds to wait between NAICS code searches (default: 1.5)",
     )
+    parser.add_argument(
+        "--profile-delay-seconds", type=float, default=DEFAULT_PROFILE_DELAY_SECONDS,
+        help=(
+            f"Seconds to wait between individual profile page dives during enrichment "
+            f"(default: {DEFAULT_PROFILE_DELAY_SECONDS}). "
+            "Use 0 to disable."
+        ),
+    )
     args = parser.parse_args()
 
     # ---- Resolve NAICS target set ----
@@ -330,7 +488,8 @@ def main() -> None:
     mode_label = "ad-hoc" if args.ad_hoc else "pipeline"
     print(
         f"C-SPOTTER [{mode_label}]: querying SBA cert search for {len(naics_items)} NAICS code(s) "
-        f"(limit {args.limit_per_naics}/code, {'headed' if args.headed else 'headless'})"
+        f"(limit {args.limit_per_naics}/code, {'headed' if args.headed else 'headless'}, "
+        f"profile-delay {args.profile_delay_seconds}s)"
     )
 
     # ---- Launch Playwright ----
@@ -374,6 +533,32 @@ def main() -> None:
             # Delay between NAICS codes
             if i < len(naics_items):
                 time.sleep(args.delay_seconds)
+
+        # ---- Profile enrichment pass ----
+        # Navigate to each business's SBA cert profile to pull additional fields.
+        # Fail-soft per field: missing data logs a warning; never aborts the run.
+        if all_records:
+            print(f"\nC-SPOTTER [enrich]: diving {len(all_records)} profile(s) "
+                  f"(delay {args.profile_delay_seconds}s between each)")
+            enrich_errors: list[str] = []
+            enriched_records: list[dict] = []
+            for j, rec in enumerate(all_records, 1):
+                print(f"  [{j}/{len(all_records)}] {rec['name'][:60]}")
+                enriched = _enrich_profile(page, rec, enrich_errors)
+                enriched_records.append(enriched)
+
+                # Print per-record enrichment gap warnings inline
+                for gap_warn in enrich_errors[-(len(enrich_errors)):]:
+                    if rec["name"][:20] in gap_warn or "[enrich]" in gap_warn:
+                        pass  # already visible in enrich_errors accumulation
+
+                if j < len(all_records) and args.profile_delay_seconds > 0:
+                    time.sleep(args.profile_delay_seconds)
+
+            all_records = enriched_records
+            all_errors.extend(enrich_errors)
+            if enrich_errors:
+                print(f"  [enrich] {len(enrich_errors)} gap warning(s) (null fields) -- see log")
 
         context.close()
         browser.close()
