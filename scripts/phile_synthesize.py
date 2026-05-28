@@ -224,10 +224,35 @@ _(excerpted from `Weaving I am Content.docx`)_
 
 ## Task
 
-Synthesize the article above into two pieces, in the voice described:
+Synthesize the article above into three pieces, in the voice described:
 
 1. **One social post** — max 280 characters
 2. **One short HTML blog draft** — `<h1>` + 2-3 `<p>` paragraphs
+3. **One visual direction file** — markdown using the GEM template below
+
+### Visual direction template (lock this structure — field names are used downstream)
+
+```markdown
+### 🖋️ Writing
+- **Title:** <blog title>
+- **Core Theme/Hook:** <1-2 sentences summarizing the main emotional or philosophical takeaway>
+- **Key Excerpt:** "<a specific quote or paragraph from the blog draft with the strongest visual imagery>"
+
+### 🎨 Visual Direction
+- **Concept Idea:** <e.g. diagonal split image, metaphorical landscape, person in a state of mind>
+- **Mood/Vibe:** <e.g. somber, reflective, empowering, gritty, minimalist>
+- **Color Temperature:** <e.g. dominated by Deep Ocean Blue + Slate Grey-Blue with warm lighting accents>
+
+### 📐 Brand Integration
+- **Logo Placement:** Top-right corner (default — change per article if you have reason)
+- **Logo Style:** <e.g. full color crest, or clean Slate Grey-Blue silhouette>
+- **Text Overlays:** <e.g. the blog title in clean sans-serif typography, OR no text>
+
+### 🖼️ Suggested Image Prompt
+```
+<a single ready-to-paste prompt, optimized for Gemini Image / Midjourney / DALL-E. 1-3 sentences. Include subject, style, mood, color, composition. No quote marks around it.>
+```
+```
 
 ## Output protocol
 
@@ -235,6 +260,7 @@ When done, write the results to:
 
 - `research/data/drafts/_done/phile_{slug}_social.txt`  _(plain text, ≤280 chars)_
 - `research/data/drafts/_done/phile_{slug}_blog.html`  _(HTML only, no `<html>`/`<body>` wrapper)_
+- `research/data/drafts/_done/phile_{slug}_visual.md`  _(markdown, GEM template filled in — including the Suggested Image Prompt block)_
 
 Then move this bundle from `_pending/` to `_consumed/`:
 

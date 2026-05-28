@@ -49,9 +49,19 @@ e. Move the bundle from `_pending/` to `_consumed/`:
 
 Repeat for every bundle.
 
-## Step 5 — Summary packet
+## Step 5 — Assemble review packages
 
-After all bundles are processed, print a summary in this format:
+After all bundles are consumed, run the package generator using the batch timestamp from Step 2. The timestamp appears in the filenames of the bundles (e.g. `phile_20260527_234450_01.md` → timestamp is `20260527_234450`).
+
+```
+backend/.venv/Scripts/python.exe scripts/phile_package.py --batch <ts>
+```
+
+Replace `<ts>` with the actual timestamp. The script will print both output paths on completion. Note the two package paths for the summary.
+
+## Step 6 — Summary packet
+
+After packages are generated, print a summary in this format:
 
 ```
 Batch complete — N article(s) synthesized
@@ -65,8 +75,13 @@ Batch complete — N article(s) synthesized
 ...
 
 Review at: research/data/drafts/_done/
+
+Packages:
+  research/data/drafts/_packages/phile_batch_<ts>.html
+  research/data/drafts/_packages/phile_batch_<ts>.md
 ```
 
 - Number each item.
 - Show the article title and the full social post text (no HTML).
-- End with the "Review at:" line exactly as shown.
+- End with the "Review at:" and "Packages:" lines exactly as shown, substituting the real timestamp.
+- If the package generator fails (e.g. no `_done/` artifacts yet), note the error in the summary but do not block the output — the per-article files are still available in `_done/`.
