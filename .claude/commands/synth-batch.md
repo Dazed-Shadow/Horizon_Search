@@ -59,9 +59,19 @@ backend/.venv/Scripts/python.exe scripts/phile_package.py --batch <ts>
 
 Replace `<ts>` with the actual timestamp. The script will print both output paths on completion. Note the two package paths for the summary.
 
-## Step 6 — Summary packet
+## Step 6 — Refresh article catalog
 
-After packages are generated, print a summary in this format:
+After the package generator completes, refresh the article catalog:
+
+```
+backend/.venv/Scripts/python.exe scripts/phile_catalog.py
+```
+
+The script is idempotent — it rebuilds all three catalog files from the current `_consumed/` state. Note the catalog path printed on completion (`research/data/drafts/_catalog/`).
+
+## Step 7 — Summary packet
+
+After catalog is refreshed, print a summary in this format:
 
 ```
 Batch complete — N article(s) synthesized
@@ -79,9 +89,14 @@ Review at: research/data/drafts/_done/
 Packages:
   research/data/drafts/_packages/phile_batch_<ts>.html
   research/data/drafts/_packages/phile_batch_<ts>.md
+
+Catalog:
+  research/data/drafts/_catalog/index.html
+  research/data/drafts/_catalog/articles.jsonl
+  research/data/drafts/_catalog/summary.md
 ```
 
 - Number each item.
 - Show the article title and the full social post text (no HTML).
-- End with the "Review at:" and "Packages:" lines exactly as shown, substituting the real timestamp.
-- If the package generator fails (e.g. no `_done/` artifacts yet), note the error in the summary but do not block the output — the per-article files are still available in `_done/`.
+- End with the "Review at:", "Packages:", and "Catalog:" lines exactly as shown, substituting the real timestamp.
+- If the package generator or catalog script fails, note the error in the summary but do not block the output — the per-article files are still available in `_done/`.

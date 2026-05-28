@@ -31,14 +31,16 @@ for the rationale behind the prep/consume split and batch mode.
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-HERE        = Path(__file__).resolve().parent.parent   # repo root
-INBOX_DIR   = HERE / "research" / "data" / "inbox"
-DRAFTS_DIR  = HERE / "research" / "data" / "drafts"
-PENDING_DIR = DRAFTS_DIR / "_pending"
+HERE         = Path(__file__).resolve().parent.parent   # repo root
+INBOX_DIR    = HERE / "research" / "data" / "inbox"
+DRAFTS_DIR   = HERE / "research" / "data" / "drafts"
+PENDING_DIR  = DRAFTS_DIR / "_pending"
+CONSUMED_DIR = DRAFTS_DIR / "_consumed"
 
 DEFAULT_VOICE_DOC = Path("G:/My Drive/AI GEN/Weaving I am Content.docx")
 
@@ -66,9 +68,42 @@ def read_voice_doc(path: Path) -> tuple[str, list[str]]:
 
 
 # ---------------------------------------------------------------------------
+# Cross-batch dedupe — scan _consumed/ for previously-synthesized URLs
+# ---------------------------------------------------------------------------
+_URL_RE = re.compile(r"\*\*URL:\*\*\s*(.+)")
+
+
+def load_consumed_urls() -> set[str]:
+    """Scan _consumed/*.md bundles and return a set of all previously-synthesized URLs.
+
+    Uses the same narrow-to-Source-article approach as phile_package.py to avoid
+    false matches in voice reference text or GEM template embedded in the bundle.
+    """
+    consumed: set[str] = []
+    if not CONSUMED_DIR.exists():
+        return set()
+    for path in CONSUMED_DIR.glob("*.md"):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        # Narrow search to ## Source article section only
+        sec_match = re.search(
+            r"## Source article(.*?)(?=^##|\Z)", text, re.DOTALL | re.MULTILINE
+        )
+        search_text = sec_match.group(1) if sec_match else text
+        m = _URL_RE.search(search_text)
+        if m:
+            url = m.group(1).strip()
+            if url and not url.startswith("["):
+                consumed.append(url)
+    return set(consumed)
+
+
+# ---------------------------------------------------------------------------
 # Pick articles from today's inbox files, round-robin by category
 # ---------------------------------------------------------------------------
-def pick_articles(count: int) -> tuple[list[dict], list[str]]:
+def pick_articles(count: int, allow_duplicates: bool = False) -> tuple[list[dict], list[str]]:
     """
     Return (article_list, errors). List may be shorter than count if inbox is thin.
 
@@ -78,10 +113,19 @@ def pick_articles(count: int) -> tuple[list[dict], list[str]]:
 
     Falls back to all .jsonl files modified in the last 24 hours if the
     date-glob yields nothing (e.g. when running just after midnight UTC).
+
+    Cross-batch dedupe: unless allow_duplicates=True, articles whose URL already
+    appears in any _consumed/*.md bundle are excluded from the candidate pool.
     """
     import time as _time
 
     errors: list[str] = []
+
+    # --- cross-batch dedupe ---
+    if allow_duplicates:
+        consumed_urls: set[str] = set()
+    else:
+        consumed_urls = load_consumed_urls()
 
     # --- locate today's files ---
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -107,8 +151,9 @@ def pick_articles(count: int) -> tuple[list[dict], list[str]]:
         date_files = [all_files[-1]]
         print(f"  [INFO] Falling back to most-recent inbox file: {date_files[0].name}")
 
-    # --- load all records, deduping by URL ---
+    # --- load all records, deduping by URL (within-batch) ---
     seen_urls: set[str] = set()
+    excluded_count: int = 0
     by_category: dict[str, list[dict]] = {}
 
     for path in date_files:
@@ -127,10 +172,17 @@ def pick_articles(count: int) -> tuple[list[dict], list[str]]:
                     if url in seen_urls:
                         continue
                     seen_urls.add(url)
+                    # cross-batch dedupe
+                    if url in consumed_urls:
+                        excluded_count += 1
+                        continue
                     cat = article.get("category", "uncategorized")
                     by_category.setdefault(cat, []).append(article)
         except Exception as exc:
             errors.append(f"Failed to read inbox file {path}: {exc}")
+
+    if excluded_count:
+        print(f"  [INFO] Excluded {excluded_count} already-consumed URL(s) from picker pool.")
 
     if not by_category:
         errors.append("All inbox files were empty or had no valid records")
@@ -284,6 +336,12 @@ def main() -> None:
         help="Number of bundles to produce in this batch (default: 1). "
              "Each bundle consumes one article from the most recent inbox JSONL.",
     )
+    parser.add_argument(
+        "--allow-duplicates", action="store_true",
+        help="Skip cross-batch dedupe. Useful for re-synthesizing an article "
+             "whose first bundle was thin (e.g. before the body extractor was fixed). "
+             "Default: dedupe is ON.",
+    )
     args = parser.parse_args()
 
     if args.count < 1:
@@ -299,7 +357,7 @@ def main() -> None:
     all_errors.extend(errs)
 
     print(f"C-Phile: selecting {args.count} article(s) from {INBOX_DIR}")
-    articles, errs = pick_articles(args.count)
+    articles, errs = pick_articles(args.count, allow_duplicates=args.allow_duplicates)
     all_errors.extend(errs)
 
     if not articles:
