@@ -141,14 +141,24 @@ def _extract_body_fr(
     return body[:max_chars], None
 
 
+# Class-name pattern for sidebar/related/promo blocks that pollute generic
+# extraction (e.g. KFF wraps related-post cards in <article> tags, which would
+# otherwise win soup.find("article") over the real article body).
+_NOISE_CLASS_RE = re.compile(
+    r"(related|recommended|pre-footer|sidebar|share|comments?|newsletter|promo|subscribe)",
+    re.I,
+)
+
+
 def _extract_body_generic(
     url: str, client: httpx.Client, max_chars: int
 ) -> tuple[str, str | None]:
     """
     Generic HTML body extraction for non-FR URLs.
 
-    Tries <article>, <main>, <div class="entry-content"> in order.
-    Falls back to <body> text. Returns (body_text, error | None).
+    Strips nav/footer/sidebar/related-post noise, then picks the largest
+    <article> by text length (avoiding tiny related-post cards), falling back
+    to <main> / entry-content / etc. Returns (body_text, error | None).
     """
     html, status = _http_get(client, url)
     if status not in (200, 301, 302) or not html:
@@ -156,13 +166,27 @@ def _extract_body_generic(
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # Remove nav/header/footer noise
-    for tag in soup(["nav", "header", "footer", "script", "style", "noscript"]):
+    # Remove structural noise
+    for tag in soup(["nav", "header", "footer", "script", "style",
+                     "noscript", "aside", "form"]):
         tag.decompose()
 
-    # Try semantic containers in order of preference
+    # Remove blocks whose class names mark them as related/sidebar/promo noise.
+    # KFF in particular nests <article> tags inside .article-pre-footer divs;
+    # without this strip, soup.find("article") returns a related-post card
+    # rather than the real article body.
+    for el in soup.find_all(class_=_NOISE_CLASS_RE):
+        el.decompose()
+
+    # Among remaining <article> tags, prefer the largest by text length —
+    # any leftover boilerplate articles are typically tiny vs the real one.
+    articles = soup.find_all("article")
+    best_article = max(
+        articles, key=lambda a: len(a.get_text(strip=True)), default=None
+    )
+
     container = (
-        soup.find("article")
+        best_article
         or soup.find("main")
         or soup.find(class_="entry-content")
         or soup.find(class_="post-content")
