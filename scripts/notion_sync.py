@@ -72,6 +72,10 @@ DECISIONS_PROPS = {
         {"name": "UX",           "color": "pink"},
         {"name": "API",          "color": "purple"},
         {"name": "Content",      "color": "orange"},
+        {"name": "Pipeline",     "color": "brown"},
+        {"name": "SPOTTER",      "color": "gray"},
+        {"name": "Phile",        "color": "blue"},
+        {"name": "Transit",      "color": "green"},
     ]}},
     "Date": {"date": {}},
 }
@@ -179,6 +183,9 @@ REFERENCE_PROPS = {
 
 
 BRANCH = "claude/military-contract-search-tool-9hm2D"
+
+# ── Cross-repo path: Central Hub pipeline decisions ───────────────────────────
+CENTRAL_HUB_DECISIONS = Path(r"C:\Users\theri\OneDrive\Terminal\MR_C\GIT PROJS\Central Hub\pipeline\DECISIONS.md")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -309,10 +316,126 @@ DECISIONS = [
 ]
 
 
+_PIPELINE_AREA_MAP = {
+    # keyword (lowercase) → second area tag
+    "c-spotter": "SPOTTER",
+    "spotter":   "SPOTTER",
+    "c-phile":   "Phile",
+    "phile":     "Phile",
+    "c-transit": "Transit",
+    "transit":   "Transit",
+}
+
+_BODY_SUFFIX   = "… [see Central Hub/pipeline/DECISIONS.md for full entry]"
+# Notion rich_text block hard cap is 2000 UTF-16 code units (JavaScript .length).
+# Emoji outside the BMP (U+1F000 and above) count as 2 units in UTF-16 but 1 in
+# Python len(). We compute the Notion-visible length and truncate against that.
+_NOTION_MAX    = 2000
+
+
+def _utf16_len(s: str) -> int:
+    """Return the length Notion counts: UTF-16 code units (i.e. JavaScript .length)."""
+    return len(s.encode("utf-16-le")) // 2
+
+
+def _truncate_for_notion(body: str) -> str:
+    """Truncate body so that body + suffix fits within Notion's 2000 UTF-16 unit cap."""
+    suffix_u16 = _utf16_len(_BODY_SUFFIX)
+    max_body_u16 = _NOTION_MAX - suffix_u16
+    if _utf16_len(body) <= _NOTION_MAX - suffix_u16:
+        return body
+    # Trim character by character from the right until we fit
+    while body and _utf16_len(body) > max_body_u16:
+        body = body[:-1]
+    return body + _BODY_SUFFIX
+
+
+def _pipeline_area_tags(title: str, body: str) -> list[str]:
+    """Return ["Pipeline"] or ["Pipeline", "<agent>"] based on content."""
+    combined = (title + " " + body).lower()
+    for kw, tag in _PIPELINE_AREA_MAP.items():
+        if kw in combined:
+            return ["Pipeline", tag]
+    return ["Pipeline"]
+
+
+def parse_pipeline_decisions() -> list[dict]:
+    """
+    Parse D-### entries from Central Hub/pipeline/DECISIONS.md.
+    Returns a list of decision dicts compatible with the DECISIONS schema.
+    Returns [] and logs a warning if the file doesn't exist.
+    """
+    if not CENTRAL_HUB_DECISIONS.exists():
+        print(f"  WARNING: Central Hub decisions file not found at:\n"
+              f"    {CENTRAL_HUB_DECISIONS}\n"
+              f"  Skipping pipeline decisions parse.")
+        return []
+
+    text = CENTRAL_HUB_DECISIONS.read_text(encoding="utf-8")
+
+    # Match headers like:
+    #   ## D-001 · 2026-05-25 · Five agents, not six
+    #   ## D-015 Phase 2 · 2026-05-28 · `sam_profile_url` via UEI extraction
+    header_re = re.compile(
+        r'^## (D-\d+(?:\s+Phase\s+\d+)?)\s+\xb7\s+(\d{4}-\d{2}-\d{2})\s+\xb7\s+(.+)$',
+        re.MULTILINE,
+    )
+
+    matches = list(header_re.finditer(text))
+    entries = []
+
+    for i, m in enumerate(matches):
+        d_id    = m.group(1).strip()   # e.g. "D-001" or "D-015 Phase 2"
+        date    = m.group(2).strip()
+        heading = m.group(3).strip()
+
+        # Body: everything from end of header line to start of next ## header or ---
+        block_end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        raw_body  = text[m.end():block_end]
+
+        # Trim leading/trailing whitespace; strip trailing --- separator if present
+        body = raw_body.strip()
+        # Remove a leading --- at the very start of the block (rare, but possible)
+        body = re.sub(r'^---+\s*', '', body).strip()
+        # Remove a trailing --- separator
+        body = re.sub(r'\s*---+\s*$', '', body).strip()
+
+        body   = _truncate_for_notion(body)
+        title  = f"{d_id}: {heading}"
+        areas  = _pipeline_area_tags(heading, body)
+
+        entries.append({
+            "title":  title,
+            "status": "Active",
+            "by":     "Opus",
+            "area":   areas,
+            "date":   date,
+            "body":   body,
+        })
+
+    print(f"  Parsed {len(entries)} pipeline decision(s) from "
+          f"Central Hub/pipeline/DECISIONS.md")
+    return entries
+
+
 def sync_decisions(db_id: str):
+    # Merge hardcoded HZ decisions with pipeline decisions from Central Hub.
+    # Pipeline entries win on title collision (parsed version is authoritative).
+    pipeline = parse_pipeline_decisions()
+    pipeline_by_title = {d["title"]: d for d in pipeline}
+
+    combined = []
+    for d in DECISIONS:
+        if d["title"] not in pipeline_by_title:
+            combined.append(d)
+    combined.extend(pipeline)
+
+    # Sort newest-first by date descending
+    combined.sort(key=lambda d: d["date"], reverse=True)
+
     existing = existing_titles(db_id)
     added = errors = 0
-    for d in DECISIONS:
+    for d in combined:
         if d["title"] in existing:
             _skip(d["title"][:80])
             continue
@@ -853,6 +976,8 @@ def sync_session_logs(db_id: str):
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     print(f"\nHorizon Search — Notion Full Sync")
     print(f"Root page: {ROOT_PAGE_ID}")
     print(f"Date:      {now_iso()}")
