@@ -38,6 +38,50 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-05-28] SPOTTER Phase 2 — narratives + award history + website classify + PDF download
+**Type:** Feature
+**Priority:** High
+**Tags:** #backend #pipeline #spotter
+**Detail:** Four deferred items from D-015 Phase 2, to be shipped together as a single Sonnet pass for SPOTTER's review depth. (1) `/spotter-narrate [N]` slash command — Mr. C produces first-pass narratives per business using the JR-annotated CSV notes as voice calibration (Phile-style prep/consume split). (2) PDF download from each SBA profile page via Playwright's built-in PDF capture. (3) Business website fetch + classify — what does the business actually do, contractor vs subcontractor, self-reported NAICS. (4) Award history cross-reference: UEI → SAM.gov entity → first reward + latest reward from `fetch_awards.py` data, surfaced as "started from / now at" comparison for the relationship-first outreach angle JR described. See `Central Hub/pipeline/DECISIONS.md` D-015 Phase 2 for the deferred list.
+**Resolution:**
+
+## [2026-05-28] D-018 — KFF Health body extractor returns wrong KFF article
+**Type:** Bug
+**Priority:** Medium
+**Tags:** #pipeline #transit #bug
+**Detail:** D-014.2 fix (strip noise blocks + pick largest `<article>`) resolved the related-post wrapper issue, but the extractor now returns a *different* KFF article on the same page rather than the requested one. Observed in `phile_20260528_230641_02` — title was "Montana Hurries To Adopt Trump's Medicaid Work Rules" but body returned was "Montana Moves Ahead With Doula Pay." KFF page structure includes adjacent recent articles in the main content area that win the largest-article selector. Fix: KFF-specific extractor (mirror of the FR JSON API pattern from D-008) that targets `div.wp-block-kff-news-modern-news-content-container` directly.
+**Resolution:**
+
+## [2026-05-28] D-014.x cosmetic — MD package still renders "🎨 Visual" truncated
+**Type:** Bug
+**Priority:** Low
+**Tags:** #pipeline #phile #cosmetic
+**Detail:** D-014.1 fix restored "Visual Direction" header in the HTML package render but the MD path still emits "🎨 Visual". Tiny ~5 LOC fix in `phile_package.py` — verify the MD section heading constant matches the HTML one.
+**Resolution:**
+
+## [2026-05-28] D-019 — extend notion_sync.py to read pipeline/DECISIONS.md
+**Type:** Enhancement
+**Priority:** Medium
+**Tags:** #docs #notion #integration
+**Detail:** `scripts/notion_sync.py` currently has a hardcoded `DECISIONS = [...]` list for HZ engineering decisions but doesn't read the 17 pipeline D-### entries from `Central Hub/pipeline/DECISIONS.md`. As a result, every pipeline decision shipped this week (D-001..D-017) is invisible in the HZ Notion workspace. Fix: extend the DECISIONS sync to also scan `pipeline/DECISIONS.md` (parse `## D-### · <date> · <title>` headers + body), merge with the hardcoded list, dedupe by title. Source of truth stays in `DECISIONS.md` — no duplication.
+**Resolution:**
+
+## [2026-05-28] Bundle 03 escalation — refugee admissions article awaiting decision
+**Type:** Decision
+**Priority:** Medium
+**Tags:** #pipeline #phile #content
+**Detail:** `research/data/drafts/_pending/phile_20260528_230641_03.md` triggered the C-Phile escalation rule (politically charged content — Refugee Admissions Presidential Determination citing specific governments and groups). Per AGENTS.md, the bundle stays in `_pending/` until JR decides. Three options: (a) skip — move bundle to `_consumed/` so the catalog records it and dedupe skips it on next run; (b) synthesize anyway — consume normally; (c) defer indefinitely — leave in `_pending/`, will be re-picked every `/synth-batch` until resolved.
+**Resolution:**
+
+## [2026-05-28] C-Comms design — deferred to next week
+**Type:** Feature
+**Priority:** High (strategic)
+**Tags:** #pipeline #comms #architecture
+**Detail:** D-005 exit criteria nearly met (3+ clean track runs landed). Time to design C-Comms — the review packet assembly stage that bundles candidates (SPOTTER) + contract context (MainLiner) + drafts (Phile) into a single Notion page per cycle. Strategic decisions needed: which Notion page hosts the packet, how candidates are ranked/grouped, whether the packet replaces the current ad-hoc demo packets I assemble in-session. Per JR's call, deferred to next week — needs its own session, not bolted onto a packed weekend.
+**Resolution:**
+
+---
+
 ## [2026-05-25] NAICS Insights — SQLite persistent cache + 24-month data
 **Type:** Enhancement
 **Priority:** High — COMPLETE (Hybrid resolution per Opus)
