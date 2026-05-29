@@ -9,8 +9,9 @@ and writes enriched records to JSONL.
 
 Writes: research/data/candidates/spotter_<YYYY-MM-DD>.jsonl  (one JSON per line)
 
-Record shape (v2 -- enriched):
-  {name, naics, url, cage_code, business_website, email, contact_name, sam_profile_url}
+Record shape (v3 -- enriched + PDF):
+  {name, naics, url, cage_code, business_website, email, contact_name, sam_profile_url,
+   profile_pdf}
   New fields are additive -- old consumers reading only {name, naics, url} are unaffected.
   Any field the profile doesn't expose is null; a per-record warning is printed.
 
@@ -34,6 +35,7 @@ Usage:
     python scripts/spotter_find.py --limit-per-naics 3 --headed
     python scripts/spotter_find.py --delay-seconds 2.0
     python scripts/spotter_find.py --profile-delay-seconds 2.0
+    python scripts/spotter_find.py --no-pdf
 """
 
 import argparse
@@ -48,6 +50,7 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 
 HERE           = Path(__file__).resolve().parent.parent   # repo root
 CANDIDATES_DIR = HERE / "research" / "data" / "candidates"
+PDFS_DIR       = CANDIDATES_DIR / "_pdfs"
 
 sys.path.insert(0, str(HERE / "research"))
 from _logs.log_run import log as log_run  # noqa: E402
@@ -314,6 +317,57 @@ def _enrich_profile(page, record: dict, errors: list[str]) -> dict:
     return enriched
 
 
+def _slugify(text: str) -> str:
+    """Convert a business name to a safe filesystem slug (lowercase, hyphens)."""
+    slug = text.lower()
+    slug = re.sub(r"[^\w\s-]", "", slug)
+    slug = re.sub(r"[\s_]+", "-", slug)
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    return slug[:60]  # cap at 60 chars
+
+
+def _capture_pdf(page, record: dict, errors: list[str]) -> str | None:
+    """
+    Save the currently-loaded SBA cert profile page as a PDF.
+    The page must already be loaded (call after _enrich_profile).
+
+    Returns the relative path string (e.g. 'research/data/candidates/_pdfs/9AZM9.pdf')
+    or None if capture failed.
+
+    Filename priority:
+      1. <cage_code>.pdf  — deterministic, unique, cross-reference-friendly.
+      2. _unknown_<slug>.pdf  — fallback if cage_code is null (defensive).
+    """
+    cage = record.get("cage_code")
+    name = record.get("name", "unknown")
+    if cage:
+        filename = f"{cage}.pdf"
+    else:
+        filename = f"_unknown_{_slugify(name)}.pdf"
+
+    PDFS_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = PDFS_DIR / filename
+
+    t0 = time.monotonic()
+    try:
+        page.pdf(
+            path=str(out_path),
+            format="A4",
+            print_background=False,
+            display_header_footer=False,
+        )
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+        size_kb = int(out_path.stat().st_size / 1024)
+        print(f"    [pdf] {filename} ({elapsed_ms}ms, {size_kb}KB)")
+        # Return relative path from repo root so the record is portable
+        return str(out_path.relative_to(HERE)).replace("\\", "/")
+    except Exception as exc:
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+        errors.append(f"  [pdf] {name}: PDF capture failed ({elapsed_ms}ms) -- {exc}")
+        print(f"    [pdf] {filename} FAILED ({elapsed_ms}ms) -- {exc}")
+        return None
+
+
 def _search_naics(
     page,
     naics: str,
@@ -498,6 +552,14 @@ def main() -> None:
             "Use 0 to disable."
         ),
     )
+    parser.add_argument(
+        "--no-pdf", action="store_true",
+        help=(
+            "Disable PDF capture. By default, each business profile is saved as a PDF "
+            "in research/data/candidates/_pdfs/<cage_code>.pdf. Use this flag to skip "
+            "PDF generation (faster runs, no disk writes to _pdfs/)."
+        ),
+    )
     args = parser.parse_args()
 
     # ---- Resolve NAICS target set ----
@@ -512,10 +574,11 @@ def main() -> None:
     all_errors:  list[str]  = []
 
     mode_label = "ad-hoc" if args.ad_hoc else "pipeline"
+    pdf_label  = "no-pdf" if args.no_pdf else "pdf-ON"
     print(
         f"C-SPOTTER [{mode_label}]: querying SBA cert search for {len(naics_items)} NAICS code(s) "
         f"(limit {args.limit_per_naics}/code, {'headed' if args.headed else 'headless'}, "
-        f"profile-delay {args.profile_delay_seconds}s)"
+        f"profile-delay {args.profile_delay_seconds}s, {pdf_label})"
     )
 
     # ---- Launch Playwright ----
@@ -564,27 +627,36 @@ def main() -> None:
         # Navigate to each business's SBA cert profile to pull additional fields.
         # Fail-soft per field: missing data logs a warning; never aborts the run.
         if all_records:
-            print(f"\nC-SPOTTER [enrich]: diving {len(all_records)} profile(s) "
+            pdf_note = "" if args.no_pdf else " + PDF"
+            print(f"\nC-SPOTTER [enrich{pdf_note}]: diving {len(all_records)} profile(s) "
                   f"(delay {args.profile_delay_seconds}s between each)")
             enrich_errors: list[str] = []
+            pdf_errors:    list[str] = []
             enriched_records: list[dict] = []
             for j, rec in enumerate(all_records, 1):
                 print(f"  [{j}/{len(all_records)}] {rec['name'][:60]}")
                 enriched = _enrich_profile(page, rec, enrich_errors)
-                enriched_records.append(enriched)
 
-                # Print per-record enrichment gap warnings inline
-                for gap_warn in enrich_errors[-(len(enrich_errors)):]:
-                    if rec["name"][:20] in gap_warn or "[enrich]" in gap_warn:
-                        pass  # already visible in enrich_errors accumulation
+                # PDF capture — fires right after enrichment while page is still loaded.
+                # profile_pdf is null when --no-pdf is set or capture throws.
+                if not args.no_pdf:
+                    profile_pdf = _capture_pdf(page, enriched, pdf_errors)
+                else:
+                    profile_pdf = None
+                enriched["profile_pdf"] = profile_pdf
+
+                enriched_records.append(enriched)
 
                 if j < len(all_records) and args.profile_delay_seconds > 0:
                     time.sleep(args.profile_delay_seconds)
 
             all_records = enriched_records
             all_errors.extend(enrich_errors)
+            all_errors.extend(pdf_errors)
             if enrich_errors:
                 print(f"  [enrich] {len(enrich_errors)} gap warning(s) (null fields) -- see log")
+            if pdf_errors:
+                print(f"  [pdf] {len(pdf_errors)} PDF capture failure(s) -- see log")
 
         context.close()
         browser.close()

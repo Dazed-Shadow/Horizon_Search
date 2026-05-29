@@ -261,6 +261,27 @@ def _build_card(rec: dict) -> str:
         f'style="background:{COLOR_SLATE};color:#fff;text-decoration:none;">SAM.gov ↗</a>'
         if sam_url else ""
     )
+
+    # PDF badge — file:// link so it opens in the user's default PDF viewer.
+    # CANDIDATES_DIR is the parent of _pdfs/; resolve the absolute path for file://.
+    pdf_rel = rec.get("profile_pdf")
+    if pdf_rel:
+        # pdf_rel is relative to repo root (e.g. research/data/candidates/_pdfs/9AZM9.pdf)
+        # Convert to absolute path for the file:// URI.
+        abs_pdf = (HERE / pdf_rel).resolve()
+        # Use forward slashes; Windows file:// needs triple slash + drive letter.
+        pdf_uri = abs_pdf.as_uri()
+        pdf_link = (
+            f'<a href="{pdf_uri}" class="naics-badge" '
+            f'style="background:#4A7C59;color:#fff;text-decoration:none;">📎 Profile PDF</a>'
+        )
+    else:
+        pdf_link = (
+            f'<span class="naics-badge" '
+            f'style="background:transparent;color:{COLOR_NULL};border:1px solid {COLOR_NULL};">'
+            f'no PDF</span>'
+        )
+
     fields = "\n".join([
         _field_html("CAGE Code",       rec.get("cage_code")),
         _field_html("Business Website", rec.get("business_website"), link=True),
@@ -274,6 +295,7 @@ def _build_card(rec: dict) -> str:
     <span class="biz-name">{name}</span>
     {sba_link}
     {sam_link}
+    {pdf_link}
   </div>
   <div class="biz-fields">
     {fields}
@@ -340,6 +362,7 @@ CSV_COLUMNS = [
     "business_website",
     "email",
     "contact_name",
+    "pdf_path",          # relative path to _pdfs/<cage_code>.pdf, or blank
     "sba_profile_url",
     "sam_profile_url",
     "jr_status",
@@ -361,7 +384,8 @@ def build_csv_package(date_str: str, records: list[dict], out_path: Path) -> Non
                 rec.get("business_website") or "",
                 rec.get("email") or "",
                 rec.get("contact_name") or "",
-                rec.get("url", ""),          # sba_profile_url ← url field
+                rec.get("profile_pdf") or "",  # pdf_path — relative path or blank
+                rec.get("url", ""),             # sba_profile_url ← url field
                 rec.get("sam_profile_url") or "",
                 "",   # jr_status  — JR annotation
                 "",   # jr_notes   — JR annotation
