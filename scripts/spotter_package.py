@@ -7,17 +7,32 @@ Reads a spotter_<YYYY-MM-DD>.jsonl file and produces two standalone review files
   _packages/spotter_review_<date>.html  -- brand-themed (Deep Ocean Blue / Slate Grey-Blue)
                                            accordion-style grouped by NAICS code;
                                            one business card per record;
-                                           null fields shown as dimmed placeholders.
+                                           null fields shown as dimmed placeholders;
+                                           Award History panel per card (D-021).
   _packages/spotter_review_<date>.csv   -- clean tabular CSV, one row per business,
                                            UTF-8 with BOM (Excel-safe), QUOTE_ALL.
-                                           Includes jr_status / jr_notes / jr_priority
-                                           annotation columns (always blank).
+                                           Includes award columns + jr_status / jr_notes /
+                                           jr_priority annotation columns.
+
+Input file preference (D-021):
+  If spotter_<date>_awards.jsonl exists, it is used (awards sidecar from
+  spotter_awards.py). Falls back to spotter_<date>.jsonl otherwise. Running the
+  packager before awards enrichment still works — it just shows no award data.
+
+Annotation preservation (D-021 / CRITICAL):
+  Before writing the CSV, the packager checks for an existing CSV at the output
+  path. If one exists it reads jr_status, jr_notes, jr_priority keyed on
+  cage_code. When writing the new CSV it carries those values forward for any
+  matching row. This makes the packager idempotent: JR can re-run it after
+  editing the CSV in Excel without losing annotations.
+  Rows with null/blank cage_code cannot be matched and are written with blank
+  annotations (safe degradation).
 
 Usage:
     python scripts/spotter_package.py --date 2026-05-28
     python scripts/spotter_package.py --date 2026-05-28 --out-dir /custom/path
 
-See Central Hub: pipeline/DECISIONS.md (D-015) for rationale.
+See Central Hub: pipeline/DECISIONS.md (D-015, D-021) for rationale.
 """
 
 import argparse
@@ -27,6 +42,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 HERE           = Path(__file__).resolve().parent.parent   # repo root
 CANDIDATES_DIR = HERE / "research" / "data" / "candidates"
@@ -46,13 +62,29 @@ COLOR_NULL    = "#B0BEC8"   # dimmed placeholder colour
 
 
 # ---------------------------------------------------------------------------
-# Load JSONL
+# Load JSONL (B1: prefer awards sidecar if present)
 # ---------------------------------------------------------------------------
-def load_records(date_str: str) -> list[dict]:
-    path = CANDIDATES_DIR / f"spotter_{date_str}.jsonl"
-    if not path.exists():
-        print(f"[ERROR] File not found: {path}", file=sys.stderr)
+def load_records(date_str: str) -> tuple[list[dict], str]:
+    """
+    Load records for the given date.  Returns (records, source_label).
+
+    Preference order (D-021):
+      1. spotter_<date>_awards.jsonl  — enriched with USAspending data
+      2. spotter_<date>.jsonl         — raw scrape (no award fields)
+    """
+    awards_path = CANDIDATES_DIR / f"spotter_{date_str}_awards.jsonl"
+    raw_path    = CANDIDATES_DIR / f"spotter_{date_str}.jsonl"
+
+    if awards_path.exists():
+        path = awards_path
+        source_label = f"awards sidecar ({awards_path.name})"
+    elif raw_path.exists():
+        path = raw_path
+        source_label = f"raw scrape ({raw_path.name}) — no award data"
+    else:
+        print(f"[ERROR] No input file found for {date_str}: tried {awards_path.name} and {raw_path.name}", file=sys.stderr)
         sys.exit(1)
+
     records = []
     with open(path, encoding="utf-8") as f:
         for lineno, line in enumerate(f, 1):
@@ -63,7 +95,8 @@ def load_records(date_str: str) -> list[dict]:
                 records.append(json.loads(line))
             except json.JSONDecodeError as exc:
                 print(f"[WARN] Line {lineno} is not valid JSON — skipping: {exc}", file=sys.stderr)
-    return records
+
+    return records, source_label
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +248,65 @@ a:hover {{ text-decoration: underline; }}
     font-style: italic;
 }}
 
+/* ── Award History panel (D-021) ── */
+.award-panel {{
+    border-top: 1px solid #D8E6F3;
+    padding: 0.65rem 1.1rem;
+    background: #F9FBFD;
+}}
+.award-panel-header {{
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}}
+.award-panel-title {{
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: {COLOR_SLATE};
+}}
+.award-count-badge {{
+    background: {COLOR_ACCENT};
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.05rem 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+}}
+.award-grid {{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem 1.5rem;
+}}
+.award-col-label {{
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: {COLOR_MUTED};
+    margin-bottom: 0.1rem;
+}}
+.award-line {{
+    font-size: 0.82rem;
+    color: {COLOR_TEXT};
+}}
+.award-amount {{
+    font-weight: 600;
+    color: {COLOR_OCEAN};
+}}
+.award-none {{
+    font-size: 0.85rem;
+    color: #4A7C59;
+    font-style: italic;
+}}
+.award-fail {{
+    font-size: 0.85rem;
+    color: {COLOR_NULL};
+    font-style: italic;
+}}
+
 /* ── Footer ── */
 footer {{
     text-align: center;
@@ -245,6 +337,80 @@ def _field_html(label: str, value, link: bool = False, mailto: bool = False) -> 
         f'{val_html}'
         f'</div>'
     )
+
+
+def _fmt_amount(amount) -> str:
+    """Format a dollar amount as $1,234,567. Returns '—' if None/zero."""
+    if amount is None:
+        return "—"
+    try:
+        return f"${float(amount):,.0f}"
+    except (TypeError, ValueError):
+        return str(amount)
+
+
+def _build_award_panel(rec: dict) -> str:
+    """
+    Render the Award History panel for a business card (D-021).
+
+    award_status determines layout:
+      "has_awards"              → first + latest award grid with count badge
+      "no_federal_awards_found" → ground-floor message
+      "lookup_failed"           → unavailable placeholder
+      missing/None              → awards sidecar not used (raw scrape fallback)
+    """
+    status = rec.get("award_status")
+
+    if status is None:
+        # Raw scrape — no award enrichment was run
+        return ""
+
+    badge_html = ""
+    total = rec.get("total_awards_count", 0)
+    if status == "has_awards" and total:
+        badge_html = f'<span class="award-count-badge">{total} contract(s)</span>'
+
+    header = f"""
+  <div class="award-panel">
+    <div class="award-panel-header">
+      <span class="award-panel-title">Award History</span>
+      {badge_html}
+    </div>"""
+
+    if status == "no_federal_awards_found":
+        return header + """
+    <div class="award-none">No federal awards found yet &mdash; ground-floor candidate.</div>
+  </div>"""
+
+    if status == "lookup_failed":
+        return header + """
+    <div class="award-fail">Lookup unavailable.</div>
+  </div>"""
+
+    # has_awards
+    fa = rec.get("first_award") or {}
+    la = rec.get("latest_award") or {}
+
+    def _award_col(label: str, award: dict) -> str:
+        date  = award.get("date") or "—"
+        amt   = _fmt_amount(award.get("amount"))
+        agency = award.get("agency") or "—"
+        ctype  = award.get("contract_type") or "—"
+        return (
+            f'<div>'
+            f'<div class="award-col-label">{label}</div>'
+            f'<div class="award-line"><span class="award-amount">{amt}</span> &middot; {date}</div>'
+            f'<div class="award-line">{agency}</div>'
+            f'<div class="award-line" style="color:{COLOR_MUTED};font-size:0.78rem">{ctype}</div>'
+            f'</div>'
+        )
+
+    return header + f"""
+    <div class="award-grid">
+      {_award_col("First Award", fa)}
+      {_award_col("Latest Award", la)}
+    </div>
+  </div>"""
 
 
 def _build_card(rec: dict) -> str:
@@ -289,6 +455,7 @@ def _build_card(rec: dict) -> str:
         _field_html("Contact",          rec.get("contact_name")),
         _field_html("SAM Profile",      rec.get("sam_profile_url"), link=True),
     ])
+    award_panel = _build_award_panel(rec)
     return f"""
 <div class="biz-card">
   <div class="biz-card-header">
@@ -300,6 +467,7 @@ def _build_card(rec: dict) -> str:
   <div class="biz-fields">
     {fields}
   </div>
+  {award_panel}
 </div>"""
 
 
@@ -353,7 +521,7 @@ def build_html_package(date_str: str, records: list[dict]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# CSV builder
+# CSV builder (B3: new award columns; B4: annotation preservation)
 # ---------------------------------------------------------------------------
 CSV_COLUMNS = [
     "name",
@@ -362,34 +530,109 @@ CSV_COLUMNS = [
     "business_website",
     "email",
     "contact_name",
-    "pdf_path",          # relative path to _pdfs/<cage_code>.pdf, or blank
+    "pdf_path",              # relative path to _pdfs/<cage_code>.pdf, or blank
+    # Award columns (D-021) — blank when no awards sidecar was used
+    "award_status",
+    "first_award_date",
+    "first_award_amount",
+    "first_award_agency",
+    "latest_award_date",
+    "latest_award_amount",
+    "latest_award_agency",
+    "total_awards_count",
+    # Profile links
     "sba_profile_url",
     "sam_profile_url",
+    # JR annotation columns — always last; preserved across re-runs via CAGE key
     "jr_status",
     "jr_notes",
     "jr_priority",
 ]
 
 
+def _load_existing_annotations(csv_path: Path) -> dict[str, dict]:
+    """
+    Read existing CSV and build a {cage_code: {jr_status, jr_notes, jr_priority}} map.
+
+    Called before writing a new CSV to carry forward any JR annotations.
+    Rows with blank or missing cage_code are skipped (unmatchable).
+    Returns an empty dict if the file does not exist.
+    """
+    annotations: dict[str, dict] = {}
+    if not csv_path.exists():
+        return annotations
+
+    try:
+        with open(str(csv_path), encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                cage = (row.get("cage_code") or "").strip()
+                if not cage:
+                    continue
+                jr_status   = (row.get("jr_status")   or "").strip()
+                jr_notes    = (row.get("jr_notes")    or "").strip()
+                jr_priority = (row.get("jr_priority") or "").strip()
+                if jr_status or jr_notes or jr_priority:
+                    annotations[cage] = {
+                        "jr_status":   jr_status,
+                        "jr_notes":    jr_notes,
+                        "jr_priority": jr_priority,
+                    }
+    except Exception as exc:
+        print(f"[WARN] Could not read existing CSV for annotation carry-forward: {exc}", file=sys.stderr)
+
+    return annotations
+
+
 def build_csv_package(date_str: str, records: list[dict], out_path: Path) -> None:
-    """Write UTF-8-BOM CSV (QUOTE_ALL) so Excel reads it cleanly."""
+    """
+    Write UTF-8-BOM CSV (QUOTE_ALL) so Excel reads it cleanly.
+
+    B3: Award columns appended after pdf_path (see CSV_COLUMNS).
+    B4: Annotation preservation — reads existing CSV before writing; carries
+        forward jr_status/jr_notes/jr_priority keyed on cage_code so JR's
+        annotations survive a packager re-run. See D-021.
+    """
+    # B4: load any existing annotations before overwriting
+    annotations = _load_existing_annotations(out_path)
+    if annotations:
+        print(f"  [annotations] Carrying forward {len(annotations)} annotated row(s) from existing CSV")
+
     with codecs.open(str(out_path), "w", encoding="utf-8-sig") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL, lineterminator="\r\n")
         writer.writerow(CSV_COLUMNS)
         for rec in records:
+            cage = (rec.get("cage_code") or "").strip()
+            ann  = annotations.get(cage, {})
+
+            # Award fields — blank when no sidecar was used (award_status absent)
+            fa     = rec.get("first_award")  or {}
+            la     = rec.get("latest_award") or {}
+
             writer.writerow([
                 rec.get("name", ""),
                 rec.get("naics", ""),
-                rec.get("cage_code") or "",
+                cage,
                 rec.get("business_website") or "",
                 rec.get("email") or "",
                 rec.get("contact_name") or "",
-                rec.get("profile_pdf") or "",  # pdf_path — relative path or blank
-                rec.get("url", ""),             # sba_profile_url ← url field
+                rec.get("profile_pdf") or "",        # pdf_path
+                # Award columns
+                rec.get("award_status") or "",
+                fa.get("date") or "",
+                fa.get("amount") if fa.get("amount") is not None else "",
+                fa.get("agency") or "",
+                la.get("date") or "",
+                la.get("amount") if la.get("amount") is not None else "",
+                la.get("agency") or "",
+                rec.get("total_awards_count") if rec.get("total_awards_count") is not None else "",
+                # Profile links
+                rec.get("url", ""),                  # sba_profile_url
                 rec.get("sam_profile_url") or "",
-                "",   # jr_status  — JR annotation
-                "",   # jr_notes   — JR annotation
-                "",   # jr_priority — JR annotation
+                # JR annotations (preserved or blank)
+                ann.get("jr_status", ""),
+                ann.get("jr_notes", ""),
+                ann.get("jr_priority", ""),
             ])
 
 
@@ -415,8 +658,8 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"spotter_package: building review package for {date_str}")
-    records = load_records(date_str)
-    print(f"  Loaded {len(records)} record(s) from spotter_{date_str}.jsonl")
+    records, source_label = load_records(date_str)
+    print(f"  Loaded {len(records)} record(s) from {source_label}")
 
     if not records:
         print("[ERROR] No records to package. Exiting.")
