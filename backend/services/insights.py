@@ -127,7 +127,7 @@ async def _fetch_month_count(
     fmt = "%m/%d/%Y"
     params: dict = {
         "api_key": api_key,
-        "naicsCode": naics,
+        "ncode": naics,    # verified against SAM.gov v2 on 2026-06-03; "naicsCode" is a response field, not a filter param
         "limit": 1,
         "offset": 0,
         "postedFrom": date(year, month, 1).strftime(fmt),
@@ -169,12 +169,12 @@ async def _fetch_agency_count(
     fmt = "%m/%d/%Y"
     params: dict = {
         "api_key": api_key,
-        "naicsCode": naics,
+        "ncode": naics,    # verified against SAM.gov v2 on 2026-06-03; "naicsCode" is a response field, not a filter param
         "limit": 1,
         "offset": 0,
         "postedFrom": twelve_months_ago.strftime(fmt),
         "postedTo": today.strftime(fmt),
-        "organizationName": agency,
+        "organizationName": agency,  # verified against SAM.gov v2 on 2026-06-03; correct
     }
     if set_aside:
         params["typeOfSetAside"] = set_aside

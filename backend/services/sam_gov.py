@@ -168,23 +168,24 @@ async def search_contracts(
     }
 
     if keyword:
-        params["q"] = keyword
+        params["title"] = keyword          # verified against SAM.gov v2 on 2026-06-03; "q" is silently ignored
     if set_aside:
-        params["typeOfSetAside"] = set_aside
+        params["typeOfSetAside"] = set_aside  # verified against SAM.gov v2 on 2026-06-03; correct
     if naics_code:
-        params["naicsCode"] = naics_code
+        params["ncode"] = naics_code       # verified against SAM.gov v2 on 2026-06-03; "naicsCode" is the RESPONSE field, not a filter param
     if agency:
-        params["organizationName"] = agency
+        params["organizationName"] = agency  # verified against SAM.gov v2 on 2026-06-03; correct
     if solicitation_type:
-        params["ptype"] = solicitation_type
+        params["ptype"] = solicitation_type  # verified against SAM.gov v2 on 2026-06-03; correct
     if response_deadline_from:
         params["rdlfrom"] = response_deadline_from
     if response_deadline_to:
         params["rdlto"] = response_deadline_to
     if state:
-        params["placeOfPerformanceState"] = state
+        params["placeOfPerformanceState"] = state  # verified in CLAUDE.md; confirmed correct
 
     # SAM.gov v2 requires a date range — default to last 90 days if none provided
+    # postedFrom / postedTo verified as correct param names per CLAUDE.md
     fmt = "%m/%d/%Y"
     if posted_from:
         params["postedFrom"] = posted_from

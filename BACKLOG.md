@@ -38,6 +38,13 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-05-30] NAICS filter on Search page returns unrelated results
+**Type:** Bug
+**Priority:** HIGH — user-facing on the deployed product
+**Tags:** #frontend #backend #api #bug
+**Detail:** JR was running a mock research workflow trying to find expiring contracts for a specific CAGE code from the SPOTTER candidate list. Used the NAICS filter on Horizon Search's main Search page — both manual input and the dropdown selection paths. Search returned results that did not match the entered NAICS code. Suggests the NAICS param is either not being sent, not being applied to the SAM.gov query, or not being post-filtered correctly when the response comes back. Two-phase fix recommended: (1) diagnose + fix the NAICS filter specifically, (2) add pytest coverage for ALL filter params (NAICS, set_aside, solicitation_type, state, date range, open_only) — current 51-test suite likely doesn't assert that filter inputs actually constrain results. Verify against SAM.gov API docs for `naicsCode` vs `naics` param naming since SAM.gov v2 has had churn here.
+**Resolution:** Verified live against SAM.gov v2 on 2026-06-03. Two params were wrong: (1) `naicsCode` → `ncode` (naicsCode is a response field, silently ignored as a filter; ncode dropped records from 34,257 to 84 as expected). (2) `q` → `title` (q was silently ignored; title dropped to 10 matching results). `organizationName`, `typeOfSetAside`, `ptype` confirmed correct. `placeOfPerformanceState` confirmed correct per CLAUDE.md (rate-limited before re-test). Fixed in `backend/services/sam_gov.py` and also `backend/services/insights.py` (same naicsCode→ncode bug present in NAICS Insights monthly + agency queries). Added 8 new filter-coverage tests in `backend/tests/test_search_filters.py`. Suite: 59/59 passing. See commit on `claude/military-contract-search-tool-9hm2D`.
+
 ## [2026-05-28] SPOTTER Phase 2 — narratives + award history + website classify + PDF download
 **Type:** Feature
 **Priority:** High
