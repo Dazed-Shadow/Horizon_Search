@@ -6,7 +6,9 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 from services.sam_gov import search_contracts, get_contract_by_notice_id, get_opportunity_stats, SET_ASIDE_LABELS, SOLICITATION_TYPE_LABELS
+from services.digest import build_digest
 from models.contract import Contract, ContractSearchResult
+from models.digest import ContractDigest
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
@@ -78,6 +80,21 @@ async def list_set_asides():
 async def list_solicitation_types():
     """Return all solicitation type codes and labels."""
     return [{"code": k, "label": v} for k, v in SOLICITATION_TYPE_LABELS.items()]
+
+
+# Digest endpoint — must be declared BEFORE /{notice_id} wildcard so FastAPI matches it first.
+@router.get("/{notice_id}/digest", response_model=ContractDigest)
+async def get_digest(notice_id: str):
+    try:
+        digest = await build_digest(notice_id)
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=502, detail=f"SAM.gov returned {exc.response.status_code}")
+    except Exception as exc:
+        log.exception("Digest build failed")
+        raise HTTPException(status_code=502, detail=str(exc))
+    if digest is None:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    return digest
 
 
 # Deep-link support: must be last — /{notice_id} is a wildcard and would shadow /filters/* if placed first.
