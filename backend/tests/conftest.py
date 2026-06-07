@@ -28,6 +28,8 @@ def clear_sam_cache():
     _response_cache.clear()
     from services.insights import _insight_cache
     _insight_cache.clear()
+    from services.digest import _DIGEST_CACHE
+    _DIGEST_CACHE.clear()
     from services.insights_db import _db
     _db().execute("DELETE FROM monthly_counts")
     _db().execute("DELETE FROM agency_counts")
@@ -35,6 +37,7 @@ def clear_sam_cache():
     yield
     _response_cache.clear()
     _insight_cache.clear()
+    _DIGEST_CACHE.clear()
 
 
 # Minimal SAM.gov opportunity payload
