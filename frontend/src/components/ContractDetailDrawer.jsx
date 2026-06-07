@@ -3,6 +3,7 @@ import { formatDate, formatCurrency } from "../utils/formatters";
 import { SET_ASIDE_COLORS, VETERAN_CODES } from "../utils/constants";
 import { SET_ASIDE_EXPLANATIONS, SOLICITATION_TYPE_EXPLANATIONS } from "../utils/explainers";
 import LiveCountdown from "./LiveCountdown";
+import DigestTab from "./DigestTab";
 
 function relativeDate(dateStr) {
   if (!dateStr) return null;
@@ -58,6 +59,12 @@ export default function ContractDetailDrawer({ contract, onClose, isBookmarked, 
   const bodyRef = useRef(null);
   const [copied, setCopied] = useState(false);
 
+  // Tab strip state
+  const [tab, setTab] = useState("digest");
+  const [digest, setDigest] = useState(null);
+  const [digestLoading, setDigestLoading] = useState(false);
+  const digestCache = useRef(new Map()); // notice_id -> digest
+
   const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
   useEffect(() => {
@@ -98,6 +105,25 @@ export default function ContractDetailDrawer({ contract, onClose, isBookmarked, 
   // Scroll drawer body to top when a different contract opens
   useEffect(() => {
     if (contract && bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [contract?.notice_id]);
+
+  // Fetch digest whenever a new contract opens; use per-session in-memory cache
+  useEffect(() => {
+    if (!contract?.notice_id) return;
+    // Reset tab to "digest" on each new contract
+    setTab("digest");
+    if (digestCache.current.has(contract.notice_id)) {
+      setDigest(digestCache.current.get(contract.notice_id));
+      return;
+    }
+    setDigestLoading(true);
+    fetch(`/api/contracts/${contract.notice_id}/digest`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d) digestCache.current.set(contract.notice_id, d);
+        setDigest(d);
+      })
+      .finally(() => setDigestLoading(false));
   }, [contract?.notice_id]);
 
   if (!contract) return null;
@@ -193,9 +219,38 @@ export default function ContractDetailDrawer({ contract, onClose, isBookmarked, 
           </div>
         </header>
 
+        {/* ── Tab strip ─────────────────────────────────────────────── */}
+        <div className="flex border-b border-gray-200 px-6">
+          {["digest", "raw"].map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`py-2.5 mr-4 text-sm font-medium border-b-2 transition-colors ${
+                tab === t
+                  ? "border-brand-600 text-brand-700"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {t === "digest" ? "Digest" : "Raw"}
+            </button>
+          ))}
+        </div>
+
         {/* ── Scrollable body ───────────────────────────────────────── */}
         <div ref={bodyRef} className="flex-1 overflow-y-auto px-6">
 
+          {/* ── Digest tab ──────────────────────────────────────────── */}
+          {tab === "digest" && (
+            <DigestTab
+              digest={digest}
+              loading={digestLoading}
+              onSeeRaw={() => setTab("raw")}
+            />
+          )}
+
+          {/* ── Raw tab (existing content) ──────────────────────────── */}
+          {tab === "raw" && (
+            <>
           {/* Section B: At-a-glance stats */}
           <section className="py-5 border-b border-gray-100">
             <SectionLabel>At a glance</SectionLabel>
@@ -369,6 +424,8 @@ export default function ContractDetailDrawer({ contract, onClose, isBookmarked, 
 
           {/* Bottom padding */}
           <div className="h-4" />
+            </>
+          )}
         </div>
 
         {/* ── Sticky footer ─────────────────────────────────────────── */}
