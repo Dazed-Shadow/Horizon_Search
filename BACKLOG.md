@@ -38,6 +38,25 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ---
 
+## [2026-06-06] Phase A — RFP digest in contract detail drawer
+**Type:** Feature
+**Priority:** High — IN PROGRESS (design)
+**Tags:** #feature #backend #frontend #ux
+**Detail:** Designed by Opus 2026-06-06 — full spec at `docs/phase_a_rfp_digest.md`. Awaiting Sonnet implementation on the `claude/military-contract-search-tool-9hm2D` branch.
+Transforms the contract detail drawer from "raw description + metadata" into a structured RFP digest: scope summary, deliverables, submission requirements, evaluation criteria, period of performance, estimated value, and key dates — extracted from SAM.gov's description text via heuristic parsing. No new external data sources. Adds a `Digest / Raw` tab strip in the drawer body; Digest is default.
+**Components:**
+- `backend/models/digest.py` — new `ContractDigest`, `KeyDate` Pydantic models.
+- `backend/services/digest.py` — `parse_digest` (pure) + `build_digest` (async, fetches via existing `sam_gov.get_contract_by_notice_id`).
+- `backend/routers/contracts.py` — new `GET /contracts/{notice_id}/digest` route (declared before the `/{notice_id}` wildcard).
+- `frontend/src/components/DigestTab.jsx` — new component.
+- `frontend/src/components/ContractDetailDrawer.jsx` — tab strip + fetch hook + per-session digest cache via `useRef(new Map())`.
+- `backend/tests/test_digest.py` — 6 unit tests + 2 endpoint tests; existing suite must remain green.
+**Implementation sequence (commits):** model+stub → parser+unit tests → endpoint+endpoint tests → drawer tab → backlog close.
+**Sets up:** Phase B (similar opportunities sidebar) and the historical-awards intelligence layer (SPOTTER award-history thread / Phase C) build on top of this digest structure.
+**Resolution:** Pending — Sonnet to execute per spec.
+
+---
+
 ## [2026-05-30] NAICS filter on Search page returns unrelated results
 **Type:** Bug
 **Priority:** HIGH — user-facing on the deployed product
@@ -49,8 +68,8 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 **Type:** Feature
 **Priority:** High
 **Tags:** #backend #pipeline #spotter
-**Detail:** Four deferred items from D-015 Phase 2, to be shipped together as a single Sonnet pass for SPOTTER's review depth. (1) `/spotter-narrate [N]` slash command — Mr. C produces first-pass narratives per business using the JR-annotated CSV notes as voice calibration (Phile-style prep/consume split). (2) PDF download from each SBA profile page via Playwright's built-in PDF capture. (3) Business website fetch + classify — what does the business actually do, contractor vs subcontractor, self-reported NAICS. (4) Award history cross-reference: UEI → SAM.gov entity → first reward + latest reward from `fetch_awards.py` data, surfaced as "started from / now at" comparison for the relationship-first outreach angle JR described. See `Central Hub/pipeline/DECISIONS.md` D-015 Phase 2 for the deferred list.
-**Resolution:**
+**Detail:** Four deferred items from D-015 Phase 2. **Partial completion + rescope as of 2026-06-08:** (1) PDF download — ✅ shipped (D-020, commit `af6b47b`). (2) Award history cross-reference — ✅ shipped via USAspending.gov instead of SAM.gov (D-021, commit `e067dda`) — preserves the API-budget-at-site rule. (3) Website fetch + classify — ⚠️ **RESCOPED.** Original spec was generic "what does the business do / contractor vs subcontractor / self-NAICS." JR's manual annotation pass on 2026-06-07/08 surfaced his actual outreach thesis: he's filtering candidates by *design-quality opportunity* ("their site needs design attention" / "no public website I can find — good entry point"). Rescoped output fields: plain-language what-they-do, design-quality assessment (clean/dated/broken/no-site), geographic scope (local/regional/national), ownership flags extracted from SBA PDFs (woman-owned, veteran-owned). The design-quality column becomes the headline filter. (4) `/spotter-narrate [N]` slash command — pending; will consume JR's annotated CSV + the new classify fields as voice calibration. Brief to be written by Opus before Sonnet executes (queued for 2026-06-09/10 evening).
+**Resolution:** PDF (D-020) and award history (D-021) shipped. Website classify v2 + narratives remain open with rescoped framing above.
 
 ## [2026-05-28] D-018 — KFF Health body extractor returns wrong KFF article
 **Type:** Bug

@@ -28,3 +28,6 @@ scripts/backups/
 # Un-ignore commands/ which are project artifacts (slash commands for /synth-batch etc.)
 .claude/*
 !.claude/commands
+
+# Local working index — per-project file for JR's MR_C cross-project centralization tooling
+MR_C_INDEX.md
