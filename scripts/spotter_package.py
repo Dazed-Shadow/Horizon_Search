@@ -8,16 +8,19 @@ Reads a spotter_<YYYY-MM-DD>.jsonl file and produces two standalone review files
                                            accordion-style grouped by NAICS code;
                                            one business card per record;
                                            null fields shown as dimmed placeholders;
-                                           Award History panel per card (D-021).
+                                           Award History panel per card (D-021);
+                                           Site & Identity panel (D-022).
   _packages/spotter_review_<date>.csv   -- clean tabular CSV, one row per business,
                                            UTF-8 with BOM (Excel-safe), QUOTE_ALL.
-                                           Includes award columns + jr_status / jr_notes /
-                                           jr_priority annotation columns.
+                                           Includes award columns + design/ownership fields +
+                                           jr_status / jr_notes / jr_priority annotation columns.
 
-Input file preference (D-021):
-  If spotter_<date>_awards.jsonl exists, it is used (awards sidecar from
-  spotter_awards.py). Falls back to spotter_<date>.jsonl otherwise. Running the
-  packager before awards enrichment still works — it just shows no award data.
+Input file preference (D-022):
+  1. spotter_<date>_enriched.jsonl — classify + ownership + awards enrichment
+  2. spotter_<date>_awards.jsonl   — awards sidecar from spotter_awards.py
+  3. spotter_<date>.jsonl          — raw scrape (no award or design data)
+  Running the packager before enrichment still works — it just shows no data for
+  missing fields.
 
 Annotation preservation (D-021 / CRITICAL):
   Before writing the CSV, the packager checks for an existing CSV at the output
@@ -32,7 +35,7 @@ Usage:
     python scripts/spotter_package.py --date 2026-05-28
     python scripts/spotter_package.py --date 2026-05-28 --out-dir /custom/path
 
-See Central Hub: pipeline/DECISIONS.md (D-015, D-021) for rationale.
+See Central Hub: pipeline/DECISIONS.md (D-015, D-021, D-022) for rationale.
 """
 
 import argparse
@@ -68,21 +71,30 @@ def load_records(date_str: str) -> tuple[list[dict], str]:
     """
     Load records for the given date.  Returns (records, source_label).
 
-    Preference order (D-021):
-      1. spotter_<date>_awards.jsonl  — enriched with USAspending data
-      2. spotter_<date>.jsonl         — raw scrape (no award fields)
+    Preference order (D-022):
+      1. spotter_<date>_enriched.jsonl — classify + ownership + awards data
+      2. spotter_<date>_awards.jsonl   — awards sidecar only
+      3. spotter_<date>.jsonl          — raw scrape (no award or design fields)
     """
-    awards_path = CANDIDATES_DIR / f"spotter_{date_str}_awards.jsonl"
-    raw_path    = CANDIDATES_DIR / f"spotter_{date_str}.jsonl"
+    enriched_path = CANDIDATES_DIR / f"spotter_{date_str}_enriched.jsonl"
+    awards_path   = CANDIDATES_DIR / f"spotter_{date_str}_awards.jsonl"
+    raw_path      = CANDIDATES_DIR / f"spotter_{date_str}.jsonl"
 
-    if awards_path.exists():
+    if enriched_path.exists():
+        path = enriched_path
+        source_label = f"enriched sidecar ({enriched_path.name})"
+    elif awards_path.exists():
         path = awards_path
         source_label = f"awards sidecar ({awards_path.name})"
     elif raw_path.exists():
         path = raw_path
-        source_label = f"raw scrape ({raw_path.name}) — no award data"
+        source_label = f"raw scrape ({raw_path.name}) — no enrichment data"
     else:
-        print(f"[ERROR] No input file found for {date_str}: tried {awards_path.name} and {raw_path.name}", file=sys.stderr)
+        print(
+            f"[ERROR] No input file found for {date_str}: tried "
+            f"{enriched_path.name}, {awards_path.name}, and {raw_path.name}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     records = []
@@ -307,6 +319,69 @@ a:hover {{ text-decoration: underline; }}
     font-style: italic;
 }}
 
+/* ── Site & Identity panel (D-022) ── */
+.site-panel {{
+    border-top: 1px solid #D8E6F3;
+    padding: 0.65rem 1.1rem;
+    background: #F3F8FC;
+}}
+.site-panel-header {{
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.35rem;
+}}
+.site-panel-title {{
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: {COLOR_SLATE};
+}}
+.design-badge {{
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}}
+.design-clean  {{ background: #D4EDDA; color: #1A5E2E; }}
+.design-dated  {{ background: #FFF3CD; color: #7C5E00; }}
+.design-broken {{ background: #FDDEDE; color: #8B1A1A; }}
+.design-no-site {{ background: #E5E9ED; color: #5A6472; }}
+.geo-tag {{
+    background: rgba(46,109,164,0.12);
+    color: {COLOR_ACCENT};
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+}}
+.what-they-do {{
+    font-size: 0.85rem;
+    color: {COLOR_TEXT};
+    margin: 0.2rem 0 0.35rem;
+    line-height: 1.45;
+}}
+.ownership-chips {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.25rem;
+}}
+.ownership-chip {{
+    background: rgba(11,44,77,0.09);
+    color: {COLOR_OCEAN};
+    border-radius: 4px;
+    padding: 0.1rem 0.45rem;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}}
+
 /* ── Footer ── */
 footer {{
     text-align: center;
@@ -413,6 +488,93 @@ def _build_award_panel(rec: dict) -> str:
   </div>"""
 
 
+def _build_site_identity_panel(rec: dict) -> str:
+    """
+    Render the Site & Identity panel (D-022).
+
+    Shows design_quality badge, what_they_do summary, geographic_scope tag,
+    and ownership flag chips.  If none of the D-022 fields are present (raw
+    scrape or awards-only sidecar), returns an empty string.
+    """
+    design_quality   = rec.get("design_quality")
+    what_they_do     = (rec.get("what_they_do") or "").strip()
+    geo_scope        = rec.get("geographic_scope")
+    ownership        = rec.get("ownership")  # dict or None
+
+    # Skip panel entirely if none of the enriched fields are present
+    if design_quality is None and not what_they_do and geo_scope is None and ownership is None:
+        return ""
+
+    # ── Design quality badge ──
+    badge_class_map = {
+        "clean":   "design-clean",
+        "dated":   "design-dated",
+        "broken":  "design-broken",
+        "no-site": "design-no-site",
+    }
+    badge_label_map = {
+        "clean":   "Clean",
+        "dated":   "Dated",
+        "broken":  "Broken",
+        "no-site": "No Site",
+    }
+    if design_quality:
+        badge_cls   = badge_class_map.get(design_quality, "design-no-site")
+        badge_label = badge_label_map.get(design_quality, design_quality)
+        quality_badge = f'<span class="design-badge {badge_cls}">{badge_label}</span>'
+    else:
+        quality_badge = ""
+
+    # ── Geographic scope tag ──
+    if geo_scope:
+        geo_html = f'<span class="geo-tag">{geo_scope}</span>'
+    else:
+        geo_html = ""
+
+    # ── What they do ──
+    if what_they_do:
+        # Escape angle brackets for safe HTML embedding
+        safe_desc = what_they_do.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        desc_html = f'<div class="what-they-do">{safe_desc}</div>'
+    else:
+        desc_html = ""
+
+    # ── Ownership chips ──
+    chips_html = ""
+    if ownership and isinstance(ownership, dict):
+        chip_labels = {
+            "woman_owned":                    "Woman-Owned",
+            "veteran_owned":                  "Veteran-Owned",
+            "service_disabled_veteran_owned": "SD Veteran-Owned",
+            "minority_owned":                 "Minority-Owned",
+            "hubzone":                        "HUBZone",
+            "8a":                             "8(a)",
+        }
+        active_chips = [
+            f'<span class="ownership-chip">{chip_labels[k]}</span>'
+            for k, label in chip_labels.items()
+            if ownership.get(k) is True
+        ]
+        if active_chips:
+            chips_html = f'<div class="ownership-chips">{"".join(active_chips)}</div>'
+
+    # ── Assemble panel ──
+    header_parts = [
+        '<span class="site-panel-title">Site &amp; Identity</span>',
+        quality_badge,
+        geo_html,
+    ]
+    header_inner = "".join(p for p in header_parts if p)
+
+    return (
+        f'<div class="site-panel">'
+        f'<div class="site-panel-header">{header_inner}</div>'
+        f'{desc_html}'
+        f'{chips_html}'
+        f'</div>'
+    )
+
+
 def _build_card(rec: dict) -> str:
     name = rec.get("name", "—")
     sba_url = rec.get("url", "")
@@ -455,7 +617,8 @@ def _build_card(rec: dict) -> str:
         _field_html("Contact",          rec.get("contact_name")),
         _field_html("SAM Profile",      rec.get("sam_profile_url"), link=True),
     ])
-    award_panel = _build_award_panel(rec)
+    award_panel      = _build_award_panel(rec)
+    site_panel       = _build_site_identity_panel(rec)
     return f"""
 <div class="biz-card">
   <div class="biz-card-header">
@@ -467,6 +630,7 @@ def _build_card(rec: dict) -> str:
   <div class="biz-fields">
     {fields}
   </div>
+  {site_panel}
   {award_panel}
 </div>"""
 
@@ -528,6 +692,16 @@ CSV_COLUMNS = [
     "naics_matched",
     "cage_code",
     "business_website",
+    # Site & Identity columns (D-022) — blank when _enriched.jsonl not yet generated
+    "design_quality",
+    "what_they_do",
+    "geographic_scope",
+    "woman_owned",
+    "veteran_owned",
+    "service_disabled_veteran_owned",
+    "minority_owned",
+    "hubzone",
+    "is_8a",               # "8a" key renamed to is_8a for CSV header friendliness
     "email",
     "contact_name",
     "pdf_path",              # relative path to _pdfs/<cage_code>.pdf, or blank
@@ -588,10 +762,12 @@ def build_csv_package(date_str: str, records: list[dict], out_path: Path) -> Non
     """
     Write UTF-8-BOM CSV (QUOTE_ALL) so Excel reads it cleanly.
 
-    B3: Award columns appended after pdf_path (see CSV_COLUMNS).
-    B4: Annotation preservation — reads existing CSV before writing; carries
-        forward jr_status/jr_notes/jr_priority keyed on cage_code so JR's
-        annotations survive a packager re-run. See D-021.
+    D-022: Design quality, what_they_do, geographic_scope, and ownership columns
+           added after business_website (see CSV_COLUMNS).
+    B3:    Award columns follow (D-021).
+    B4:    Annotation preservation — reads existing CSV before writing; carries
+           forward jr_status/jr_notes/jr_priority keyed on cage_code so JR's
+           annotations survive a packager re-run. See D-021.
     """
     # B4: load any existing annotations before overwriting
     annotations = _load_existing_annotations(out_path)
@@ -605,19 +781,41 @@ def build_csv_package(date_str: str, records: list[dict], out_path: Path) -> Non
             cage = (rec.get("cage_code") or "").strip()
             ann  = annotations.get(cage, {})
 
+            # D-022: Site & Identity fields (blank when _enriched.jsonl not used)
+            ownership = rec.get("ownership") or {}
+
+            def _bool_flag(flag_key: str) -> str:
+                """Return 'TRUE'/'FALSE' for a bool ownership flag, or '' if not set."""
+                val = ownership.get(flag_key)
+                if val is True:
+                    return "TRUE"
+                if val is False:
+                    return "FALSE"
+                return ""
+
             # Award fields — blank when no sidecar was used (award_status absent)
-            fa     = rec.get("first_award")  or {}
-            la     = rec.get("latest_award") or {}
+            fa = rec.get("first_award")  or {}
+            la = rec.get("latest_award") or {}
 
             writer.writerow([
                 rec.get("name", ""),
                 rec.get("naics", ""),
                 cage,
                 rec.get("business_website") or "",
+                # D-022 Site & Identity columns
+                rec.get("design_quality") or "",
+                rec.get("what_they_do") or "",
+                rec.get("geographic_scope") or "",
+                _bool_flag("woman_owned"),
+                _bool_flag("veteran_owned"),
+                _bool_flag("service_disabled_veteran_owned"),
+                _bool_flag("minority_owned"),
+                _bool_flag("hubzone"),
+                _bool_flag("8a"),                    # CSV column is is_8a
                 rec.get("email") or "",
                 rec.get("contact_name") or "",
                 rec.get("profile_pdf") or "",        # pdf_path
-                # Award columns
+                # Award columns (D-021)
                 rec.get("award_status") or "",
                 fa.get("date") or "",
                 fa.get("amount") if fa.get("amount") is not None else "",
