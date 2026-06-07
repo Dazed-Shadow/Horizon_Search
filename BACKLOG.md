@@ -40,20 +40,26 @@ This is **your** file — you own the items, I work through them. Paste in anyth
 
 ## [2026-06-06] Phase A — RFP digest in contract detail drawer
 **Type:** Feature
-**Priority:** High — IN PROGRESS (design)
+**Priority:** High — COMPLETE
 **Tags:** #feature #backend #frontend #ux
-**Detail:** Designed by Opus 2026-06-06 — full spec at `docs/phase_a_rfp_digest.md`. Awaiting Sonnet implementation on the `claude/military-contract-search-tool-9hm2D` branch.
+**Detail:** Designed by Opus 2026-06-06 — full spec at `docs/phase_a_rfp_digest.md`. Implemented by Sonnet 2026-06-07 on `claude/military-contract-search-tool-9hm2D` branch.
 Transforms the contract detail drawer from "raw description + metadata" into a structured RFP digest: scope summary, deliverables, submission requirements, evaluation criteria, period of performance, estimated value, and key dates — extracted from SAM.gov's description text via heuristic parsing. No new external data sources. Adds a `Digest / Raw` tab strip in the drawer body; Digest is default.
 **Components:**
 - `backend/models/digest.py` — new `ContractDigest`, `KeyDate` Pydantic models.
-- `backend/services/digest.py` — `parse_digest` (pure) + `build_digest` (async, fetches via existing `sam_gov.get_contract_by_notice_id`).
-- `backend/routers/contracts.py` — new `GET /contracts/{notice_id}/digest` route (declared before the `/{notice_id}` wildcard).
-- `frontend/src/components/DigestTab.jsx` — new component.
-- `frontend/src/components/ContractDetailDrawer.jsx` — tab strip + fetch hook + per-session digest cache via `useRef(new Map())`.
-- `backend/tests/test_digest.py` — 6 unit tests + 2 endpoint tests; existing suite must remain green.
+- `backend/services/digest.py` — `parse_digest` (pure) + `build_digest` (async, fetches via existing `sam_gov.get_contract_by_notice_id`). In-memory 1hr TTL cache (`_DIGEST_CACHE`) mirrors `_response_cache` pattern.
+- `backend/routers/contracts.py` — new `GET /contracts/{notice_id}/digest` route (declared before the `/{notice_id}` wildcard per FastAPI precedence rule).
+- `frontend/src/components/DigestTab.jsx` — new component; confidence pill, scope summary card, stat cards, bulleted lists, key dates, "Switch to Raw" footer.
+- `frontend/src/components/ContractDetailDrawer.jsx` — tab strip + fetch hook + per-session digest cache via `useRef(new Map())`. Raw tab wraps existing content unchanged.
+- `backend/tests/test_digest.py` — 6 unit tests + 2 endpoint tests (67 total, all passing).
 **Implementation sequence (commits):** model+stub → parser+unit tests → endpoint+endpoint tests → drawer tab → backlog close.
 **Sets up:** Phase B (similar opportunities sidebar) and the historical-awards intelligence layer (SPOTTER award-history thread / Phase C) build on top of this digest structure.
-**Resolution:** Pending — Sonnet to execute per spec.
+**Resolution:** COMPLETE 2026-06-08. All 4 implementation commits landed on `claude/military-contract-search-tool-9hm2D`:
+- `e43ece4` — feat: add ContractDigest model and digest service
+- `5b1c6c2` — feat: digest parser tests + cache-bleed fixture (includes header-detection tightening: numbered list items like "1. Technical approach" were being false-positive flagged as section headers and swallowing evaluation_criteria list bodies — fixed by requiring all-caps body after the numbered/lettered prefix)
+- `6a3eaea` — feat: /contracts/{notice_id}/digest endpoint
+- `e8b2d37` — feat: digest tab in contract drawer (frontend build clean, +6KB)
+
+Suite: 67/67 passing. Bundle: 365KB main + 41KB CSS.
 
 ---
 
